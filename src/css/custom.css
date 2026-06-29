@@ -1,0 +1,85 @@
+/* Infima overrides — light mode */
+:root {
+  --ifm-color-primary: #b89000;
+  --ifm-color-primary-dark: #a48000;
+  --ifm-color-primary-darker: #9b7800;
+  --ifm-color-primary-darkest: #806300;
+  --ifm-color-primary-light: #cca000;
+  --ifm-color-primary-lighter: #d5a800;
+  --ifm-color-primary-lightest: #e9bb00;
+  --ifm-code-font-size: 93%;
+  --docusaurus-highlighted-code-line-bg: rgba(184, 144, 0, 0.1);
+}
+
+/* Dark mode — matches the Kanall dashboard */
+[data-theme='dark'] {
+  --ifm-color-primary: #FFCD32;
+  --ifm-color-primary-dark: #f0be1e;
+  --ifm-color-primary-darker: #e4b31a;
+  --ifm-color-primary-darkest: #c09615;
+  --ifm-color-primary-light: #ffd44c;
+  --ifm-color-primary-lighter: #ffd859;
+  --ifm-color-primary-lightest: #ffe280;
+
+  --ifm-background-color: #0D0D0D;
+  --ifm-background-surface-color: #111111;
+  --ifm-navbar-background-color: #0A0A0A;
+  --ifm-footer-background-color: #0A0A0A;
+  --ifm-toc-border-color: #2A2A2A;
+  --ifm-hr-border-color: #2A2A2A;
+  --ifm-color-content: #E0E0E0;
+  --ifm-color-content-secondary: #888888;
+  --ifm-menu-color: #888888;
+  --ifm-menu-color-active: #FFCD32;
+  --ifm-sidebar-background: #0A0A0A;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 205, 50, 0.08);
+}
+
+/* Navbar title styling */
+[data-theme='dark'] .navbar__title {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #F5F5F5;
+}
+
+/* Table styling in dark mode */
+[data-theme='dark'] table {
+  border-color: #2A2A2A;
+}
+
+[data-theme='dark'] th {
+  background: #111111;
+  border-color: #2A2A2A;
+}
+
+[data-theme='dark'] td {
+  border-color: #1A1A1A;
+}
+
+[data-theme='dark'] tr:nth-child(even) {
+  background: #0F0F0F;
+}
+
+/* Sidebar */
+[data-theme='dark'] .menu {
+  background: #0A0A0A;
+}
+
+/* Code blocks */
+[data-theme='dark'] .prism-code {
+  background: #0A0A0A !important;
+  border: 1px solid #1A1A1A;
+}
+
+/* Inline code */
+[data-theme='dark'] code {
+  background: #1A1A1A;
+  border: 1px solid #2A2A2A;
+  color: #FFCD32;
+}
+
+/* Admonitions */
+[data-theme='dark'] .alert {
+  border-left-color: #FFCD32;
+  background: rgba(255, 205, 50, 0.05);
+}
