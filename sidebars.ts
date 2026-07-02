@@ -11,6 +11,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'concepts/tenants',
         'concepts/virtual-accounts',
+        'concepts/kyc',
         'concepts/ledger',
         'concepts/webhooks',
         'concepts/idempotency',
@@ -23,6 +24,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'api-reference/authentication',
         'api-reference/accounts',
+        'api-reference/customers',
         'api-reference/statement',
         'api-reference/webhooks',
         'api-reference/errors',

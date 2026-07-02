@@ -6,7 +6,7 @@ sidebar_label: Tenants
 
 # Tenants
 
-A **tenant** is an organisation registered with Kanall. Every resource in the system — virtual accounts, ledger entries, webhook deliveries — belongs to exactly one tenant.
+A **tenant** is an organisation registered with Kanall. Every resource in the system — virtual accounts, customers, ledger entries, webhook deliveries — belongs to exactly one tenant.
 
 ## What a tenant represents
 
@@ -15,16 +15,16 @@ In Kanall's model, a tenant is your backend application or company. You register
 ```
 Your Company (Tenant)
     │
-    ├── virtual_account: driver-001 (Emeka)
-    ├── virtual_account: driver-002 (Fatima)
-    └── virtual_account: driver-003 (Chukwudi)
+    ├── virtual_account: driver-001 (Emeka, KYC Tier 2)
+    ├── virtual_account: driver-002 (Fatima, KYC Tier 1)
+    └── virtual_account: driver-003 (Chukwudi, KYC Tier 1)
 ```
 
 Kanall is multi-tenant: many organisations can use the same Kanall deployment simultaneously, and their data is completely isolated from each other at the database level — every SQL query is scoped by `tenant_id`.
 
 ## Registration
 
-Tenants register via `POST /register` with an organisation name, email, and password. On success, an API key is returned **once** and never shown again. Kanall stores only a SHA-256 hash of the key.
+Tenants register via `POST /register` with an organisation name, email, and password. A verification OTP is emailed to you. Confirm the OTP via `POST /auth/verify-email` to receive your API key. Kanall stores only a SHA-256 hash of the key — the raw value is never retrievable after that response.
 
 ```json
 {
@@ -52,6 +52,31 @@ The Kanall web dashboard authenticates with email and password, which creates a 
 
 Dashboard sessions and API key sessions are separate. An API key does not grant dashboard access and vice versa.
 
+## Business KYC
+
+All tenants start with `kycStatus: "unverified"`. To verify your business, submit your organisation details via `POST /auth/business-kyc` from a dashboard session:
+
+```json
+{
+  "businessType": "registered_business",
+  "cacNumber": "RC-1234567"
+}
+```
+
+Accepted `businessType` values: `sole_proprietor`, `registered_business`, `ngo`, `other`.
+
+On success, `kycStatus` moves to `"verified"`. This is reflected in the `GET /auth/me` response.
+
+:::note
+Business KYC is at the tenant (company) level. Customer-level KYC tiers (CBN-mandated) are tracked separately on each Customer record. See [KYC](./kyc).
+:::
+
+## Outbound webhook signing
+
+You can configure a per-tenant webhook signing secret via `POST /auth/webhook-secret`. Once set, Kanall signs every outbound delivery with `X-Kanall-Signature` using HMAC-SHA256. This lets you verify that deliveries are genuinely from Kanall and have not been tampered with.
+
+The secret is stored encrypted (AES-256-GCM) server-side. See [Outbound signing](../api-reference/webhooks#outbound-signing) for the verification algorithm.
+
 ## Tenant isolation
 
 All repository queries include a `WHERE tenant_id = $1` clause. There is no admin override that bypasses tenant scoping in the application layer. If a virtual account was provisioned by Tenant A, Tenant B cannot read, modify, or receive webhooks for it — even if they guess the correct `AccountRef`.
@@ -69,11 +94,14 @@ Suspension is an operator-level action and is not accessible via the tenant API.
 
 Kanall applies per-tenant rate limits at the API key level:
 
-| Endpoint | Limit |
+| Endpoint group | Limit |
 |---|---|
 | `POST /register` | 5 req/min per IP |
 | `POST /v1/accounts` | 20 req/min per API key |
-| `GET /v1/accounts` | 100 req/min per API key |
+| `GET /v1/accounts`, `GET /v1/accounts/:ref`, `GET /v1/accounts/:ref/balance`, `GET /v1/accounts/:ref/history` | 100 req/min per API key |
+| `PATCH /v1/accounts/:ref` | 20 req/min per API key |
 | `GET /v1/accounts/:ref/statement` | 60 req/min per API key |
+| `GET /v1/customers`, `GET /v1/customers/:id` | 100 req/min per API key |
+| `PATCH /v1/customers/:id`, `POST /v1/customers/:id/kyc` | 20 req/min per API key |
 
 Requests that exceed the limit receive `429 Too Many Requests`.

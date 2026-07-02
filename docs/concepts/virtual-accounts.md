@@ -27,7 +27,7 @@ When a customer transfers money to that NUBAN — from any bank, any channel —
 | `BankAccountName` | The account holder name as registered with Nomba |
 | `BankName` | The bank name (e.g. "Nomba MFB") |
 | `Currency` | Always `NGN` at this time |
-| `Status` | Current lifecycle state: `active`, `suspended`, or `expired` |
+| `Status` | Current lifecycle state: `active` or `expired` |
 | `CallbackURL` | Your endpoint that receives payment events for this account |
 | `ExpectedAmount` | Optional fixed collection amount (see below) |
 
@@ -38,6 +38,10 @@ Kanall uses three identifiers for an account:
 - **`ID`** — Kanall's internal UUID. Use this only if you need a stable foreign key in your own database.
 - **`AccountRef`** — Equal to your `externalRef` at creation time. Use this in all API calls (`GET /v1/accounts/:accountRef`, etc.).
 - **`BankAccountNumber`** — The NUBAN. This is what you share with payers — it is meaningless to Kanall internally.
+
+## Customer linkage
+
+Every virtual account is linked to a `Customer` record via `CustomerID`. The customer holds the KYC tier state (Tier 1, 2, or 3 per CBN guidelines). One customer can have multiple virtual accounts, and their KYC tier applies across all of them. See [KYC](./kyc) for the full tier model.
 
 ## Expected amount
 
@@ -55,24 +59,45 @@ If you pass `expectedAmount` when provisioning, Nomba enforces it at the payment
 
 When an amount mismatch does land (edge case), Kanall records it as a fact without taking action. Your webhook payload and statement will show the actual amount received. What you do with that is your business logic.
 
+## Balance
+
+`GET /v1/accounts/:accountRef/balance` returns the current ledger balance — the sum of all confirmed credit entries minus confirmed debit entries. Provisional and reversed entries are excluded.
+
+```json
+{
+  "accountRef": "driver-001",
+  "balance": "47500.00",
+  "currency": "NGN"
+}
+```
+
+`balance` is a decimal string. Use a decimal library when parsing — never a float.
+
+## Rename
+
+You can update the display name of an account via `PATCH /v1/accounts/:accountRef` with a `name` field. This updates the `BankAccountName` in Kanall's records. The Nomba upstream record retains the original provisioning name.
+
+## State history
+
+`GET /v1/accounts/:accountRef/history` returns a chronological log of all status transitions (e.g. provisioned → expired). Useful for audit trails.
+
 ## Lifecycle
 
-Virtual accounts move through a strict state machine:
+Virtual accounts have two states:
 
 ```
-active ──────┬──► suspended ──► expired
-             │                    ▲
-             └────────────────────┘
+active ──────────────────► expired
 ```
 
 | Transition | Endpoint | Description |
 |---|---|---|
-| `active → suspended` | `POST /v1/accounts/:ref/suspend` | Stops accepting payments temporarily |
-| `suspended → active` | `POST /v1/accounts/:ref/reactivate` | Resumes normal operation |
 | `active → expired` | `POST /v1/accounts/:ref/expire` | Permanently closes the account |
-| `suspended → expired` | `POST /v1/accounts/:ref/expire` | Permanently closes a suspended account |
 
-`expired` is a terminal state — it cannot be reversed. All previously recorded ledger entries remain and are still queryable.
+`expired` is the only terminal state — it cannot be reversed. All previously recorded ledger entries remain and are still queryable via the [Statement API](../api-reference/statement).
+
+:::warning Expiry is irreversible
+Once an account is expired, no further payments will be processed for that NUBAN. Nomba's `expiryDate` mechanism is one-way and cannot be undone. Only expire accounts you are certain are no longer needed.
+:::
 
 ## Cursor-based pagination
 
@@ -84,8 +109,9 @@ GET /v1/accounts
 
 # Next page
 GET /v1/accounts?after=7f3b9e2a-...
+```
 
-# Response includes
+```json
 {
   "pagination": {
     "limit": 20,
