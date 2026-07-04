@@ -35,25 +35,15 @@ Every customer in your system holds a `KYCTier` (1, 2, or 3) as mandated by the 
 - **Daily transaction limit:** ₦50,000
 - **Maximum balance:** ₦300,000
 
-Tier 1 is the default for customers who provide a BVN at account provision time. Without a BVN, the customer starts at Tier 0 (no limit enforcement by Kanall, but subject to Nomba rails defaults).
+Tier 1 is the default for customers who provide a BVN at account provision time.
 
-### Tier 2 — BVN + NIN
+### Tier 2 — BVN + NIN (with document)
 
-- **Requirement:** BVN on file **and** National Identification Number (NIN)
-- **Set via** `POST /v1/customers/:id/kyc` by your backend
+- **Requirement:** BVN on file **and** National Identification Number (NIN) + document image
+- **Initiated via** `POST /v1/customers/:id/kyc` by your backend
+- **Tier is not bumped immediately** — submission sets `kyc_status = "pending_review"` for operator review
 - **Daily transaction limit:** ₦200,000
 - **Maximum balance:** ₦500,000
-
-To upgrade a customer to Tier 2:
-
-```bash
-curl -X POST https://api.kanall.dev/v1/customers/a1b2c3d4-.../kyc \
-  -H "X-API-Key: ten_sk_..." \
-  -H "Content-Type: application/json" \
-  -d '{"nin": "12345678901"}'
-```
-
-The NIN is stored encrypted (AES-256-GCM). Only the last 4 digits (`NINLast4`) are returned in API responses. The upgrade from Tier 1 to Tier 2 is your responsibility — Kanall records the tier, Nomba enforces the limits at the payment rail level.
 
 ### Tier 3 — Full KYC
 
@@ -66,12 +56,34 @@ Tier 3 is intended for high-value business customers. Document upload and operat
 
 ---
 
+## KYC status machine
+
+Every customer has a `KYCStatus` field that tracks the lifecycle of their Tier 2 upgrade submission. This is separate from `KYCTier`.
+
+```
+none → pending_review → approved   (KYCTier bumps to 2)
+                     → rejected    (KYCTier stays at 1, resubmission allowed)
+```
+
+| Status | Meaning |
+|---|---|
+| `none` | No NIN submitted yet. Tier 2 upgrade available. |
+| `pending_review` | NIN and document submitted. Awaiting operator review. Resubmission blocked. |
+| `approved` | Operator approved. `KYCTier` is now `2`. |
+| `rejected` | Operator rejected. Customer may resubmit with corrected documents. |
+
+### Why a review step instead of instant verification?
+
+The major NIN verification APIs (Dojah, Smile Identity, VerifyMe) require business onboarding and are not available on-demand. Rather than skip NIN entirely or integrate an unreliable shortcut, Kanall collects the NIN and document, encrypts both at rest, and routes the decision to an operator. This is architecturally honest — the data is collected securely, the tier gates on a real approval decision, and the pipeline is wired to accept a verification provider the moment one is available.
+
+---
+
 ## Summary table
 
 | Tier | Identity documents | Daily limit | Balance cap |
 |---|---|---|---|
 | 1 | BVN | ₦50,000 | ₦300,000 |
-| 2 | BVN + NIN | ₦200,000 | ₦500,000 |
+| 2 | BVN + NIN (approved) | ₦200,000 | ₦500,000 |
 | 3 | BVN + NIN + Full docs | ₦5,000,000 | None |
 
 ---
@@ -84,6 +96,6 @@ Kanall records and reports the tier. The actual transaction limit enforcement ha
 
 ## Security
 
-- BVN and NIN values are stored encrypted with AES-256-GCM. The encryption key is set via the `ENCRYPTION_KEY` environment variable — never hardcoded.
+- BVN, NIN, and NIN document images are stored encrypted with AES-256-GCM. The encryption key is set via the `ENCRYPTION_KEY` environment variable — never hardcoded.
 - Only the last 4 digits (`BVNLast4`, `NINLast4`) are returned in API responses.
-- The raw values cannot be recovered from the API under any circumstances.
+- The raw NIN value and document cannot be recovered from the API under any circumstances.

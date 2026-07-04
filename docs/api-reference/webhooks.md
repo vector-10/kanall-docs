@@ -115,15 +115,18 @@ When a payment is received, Kanall delivers a webhook to the `callbackUrl` you r
 
 ```json
 {
-  "event": "payment.received",
+  "eventType": "payment.received",
+  "transactionGroupId": "9c4d1f3b-2e5a-4b7c-8d0e-1f2a3b4c5d6e",
   "accountRef": "driver-001",
   "amount": "5000.00",
   "currency": "NGN",
+  "senderName": "Chidi Emmanuel",
   "narration": "Transfer from Chidi Emmanuel",
-  "nombaTransactionId": "nom_txn_abc123",
-  "receivedAt": "2026-07-01T11:00:00.000Z"
+  "status": "provisional"
 }
 ```
+
+`status` is always `"provisional"` on initial delivery. The convergence sweep later confirms or reverses the entry — query the [Statement API](./statement) to check the final status.
 
 Kanall retries failed deliveries with exponential backoff across up to 5 attempts (2 min → 5 min → 11 min → 24 min → 53 min). Deliveries that exhaust all attempts become dead letters.
 

@@ -235,6 +235,176 @@ curl -X POST https://api.kanall.dev/v1/accounts/driver-001/expire \
 
 ---
 
+## Initiate settlement (outbound transfer)
+
+```
+POST /v1/accounts/:accountRef/settle
+```
+
+Initiates an outbound bank transfer from a virtual account's confirmed ledger balance to an external Nigerian bank account.
+
+**Settlement flow:**
+
+1. Kanall verifies the account's confirmed ledger balance is sufficient
+2. A settlement job is created and a provisional debit entry is posted atomically
+3. A background worker submits the transfer to Nomba and polls for confirmation
+4. On success the debit is confirmed. On failure after 5 attempts the debit is reversed and the balance restored
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `amount` | string | Yes | Amount in naira — decimal string, e.g. `"5000.00"` |
+| `bankCode` | string | Yes | Nigerian bank code, e.g. `"044"` for Access Bank |
+| `accountNumber` | string | Yes | Destination 10-digit account number |
+| `narration` | string | No | Transfer description (optional) |
+
+```bash
+curl -X POST https://api.kanall.dev/v1/accounts/driver-001/settle \
+  -H "X-API-Key: ten_sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "5000.00",
+    "bankCode": "044",
+    "accountNumber": "0123456789",
+    "narration": "Driver payout - week 27"
+  }'
+```
+
+**Response:** `202 Accepted`
+
+```json
+{
+  "merchantTxRef": "knl_1751500000_abc12345",
+  "status": "pending",
+  "amount": "5000.00",
+  "currency": "NGN",
+  "accountRef": "driver-001"
+}
+```
+
+The transfer is queued — `status: "pending"` does not mean it has succeeded. Use `GET /v1/transfers/:merchantTxRef` to track it.
+
+**Error responses:**
+
+| Status | Error | Reason |
+|---|---|---|
+| `400` | `insufficient funds` | Confirmed ledger balance is less than the requested amount |
+| `400` | `invalid amount` | Amount is zero, negative, or not a valid decimal |
+| `404` | `account not found` | `accountRef` does not exist or belongs to another tenant |
+
+:::note Balance is confirmed-only
+The balance check uses only `confirmed` ledger entries. `provisional` entries (unconfirmed inbound payments) are excluded. Funds are only settleable once the convergence sweep has confirmed them.
+:::
+
+---
+
+## Get transfer status
+
+```
+GET /v1/transfers/:merchantTxRef
+```
+
+Returns the current status of a settlement job by its internal reference.
+
+```bash
+curl https://api.kanall.dev/v1/transfers/knl_1751500000_abc12345 \
+  -H "X-API-Key: ten_sk_..."
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "merchantTxRef": "knl_1751500000_abc12345",
+  "status": "success",
+  "amount": "5000.00",
+  "bankCode": "044",
+  "accountNumber": "0123456789",
+  "attemptCount": 1,
+  "createdAt": "2026-07-01T12:00:00Z",
+  "updatedAt": "2026-07-01T12:00:04Z"
+}
+```
+
+**Transfer status values:**
+
+| Status | Meaning |
+|---|---|
+| `pending` | Queued, not yet submitted to Nomba |
+| `processing` | Submitted to Nomba, awaiting confirmation |
+| `success` | Nomba confirmed the transfer. Ledger debit is confirmed. |
+| `failed` | All retry attempts exhausted. Debit has been reversed. |
+| `refunded` | Nomba accepted then reversed the transfer (rare). Debit reversed. |
+
+**Error responses:**
+
+| Status | Error | Reason |
+|---|---|---|
+| `404` | `transfer not found` | `merchantTxRef` does not exist or belongs to another tenant |
+
+---
+
+## Lookup bank account
+
+```
+POST /v1/transfers/lookup
+```
+
+Resolves a bank account number to an account name before initiating a settlement. Use this to confirm the destination before calling `/settle`.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `accountNumber` | string | Yes | 10-digit account number |
+| `bankCode` | string | Yes | Nigerian bank code |
+
+```bash
+curl -X POST https://api.kanall.dev/v1/transfers/lookup \
+  -H "X-API-Key: ten_sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"accountNumber": "0123456789", "bankCode": "044"}'
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "AccountNumber": "0123456789",
+  "AccountName": "EMEKA OKAFOR"
+}
+```
+
+---
+
+## List supported banks
+
+```
+GET /v1/transfers/banks
+```
+
+Returns a list of Nigerian banks and their codes, sourced from Nomba.
+
+```bash
+curl https://api.kanall.dev/v1/transfers/banks \
+  -H "X-API-Key: ten_sk_..."
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "banks": [
+    { "Code": "044", "Name": "Access Bank" },
+    { "Code": "058", "Name": "GTBank" },
+    { "Code": "011", "Name": "First Bank" }
+  ]
+}
+```
+
+---
+
 ## Valid state transitions
 
 | Current status | Allowed actions |
