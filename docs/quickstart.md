@@ -37,14 +37,32 @@ curl -X POST $KANALL_URL/register \
 
 ```json
 {
-  "tenantId": "550e8400-e29b-41d4-a716-446655440000",
+  "tenantId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+Kanall sends a one-time code to your email. Verify it to receive your API key:
+
+```bash
+curl -X POST $KANALL_URL/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "550e8400-e29b-41d4-a716-446655440000",
+    "otp": "847291"
+  }'
+```
+
+**Response:**
+
+```json
+{
   "apiKey": "ten_sk_4a3b2c1d...",
   "warning": "Store this API key securely — it will not be shown again."
 }
 ```
 
 :::warning
-Save your `apiKey` immediately. Kanall stores only a hash. If you lose it, you must rotate (coming soon) or re-register.
+Save your `apiKey` immediately. Kanall stores only a SHA-256 hash — the raw key is never retrievable after this point. If you lose it, rotate via the dashboard.
 :::
 
 Set it for the remaining steps:
@@ -117,29 +135,31 @@ curl $KANALL_URL/v1/accounts/driver-001/statement \
 
 ```json
 {
-  "virtualAccount": { "AccountRef": "driver-001", "Status": "active", "..." : "..." },
+  "virtualAccount": { "AccountRef": "driver-001", "Status": "active" },
   "lines": [
     {
       "entry": {
         "Direction": "credit",
-        "Amount": "5000.00",
-        "Fee": "0.60",
+        "Amount": "4975.00",
+        "Fee": "25.00",
         "Currency": "NGN",
         "Status": "confirmed",
         "Narration": "Transfer from Chidi Emmanuel",
         "NombaTxnRef": "nom_txn_abc123",
         "CreatedAt": "2026-07-01T11:00:00Z"
       },
-      "runningBalance": "5000.00"
+      "runningBalance": "4975.00"
     }
   ],
   "openingBalance": "0.00",
-  "totalCredits": "5000.00",
+  "totalCredits": "4975.00",
   "totalDebits": "0.00",
-  "closingBalance": "5000.00",
+  "closingBalance": "4975.00",
   "pagination": { "limit": 50, "nextCursor": null, "hasMore": false }
 }
 ```
+
+`Amount` is the net naira credited to your balance after Nomba's ₦25 NIP fee. `Fee` shows what Nomba deducted — it's informational and not included in the balance calculation.
 
 ---
 
@@ -166,4 +186,4 @@ Kanall will `POST` to that URL on every confirmed payment. See [Webhooks](./conc
 
 - [Core Concepts](./concepts/tenants) — understand tenants, virtual accounts, the ledger, and webhooks in depth
 - [API Reference](./api-reference/authentication) — full endpoint documentation
-- [Tutorial: Logistics Integration](./tutorial/index) — end-to-end example with a real use case
+- [Tutorial: Logistics Integration](./tutorial/) — end-to-end example with a real use case

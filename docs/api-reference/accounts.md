@@ -18,11 +18,13 @@ Creates a new virtual account and provisions a NUBAN via Nomba.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `externalRef` | string | Yes | Your stable identifier for this entity (driver ID, customer ID, etc.) |
+| `externalRef` | string | Yes | Your stable identifier for this entity (driver ID, customer ID, order ID, etc.) |
 | `name` | string | Yes | Account holder name as it will appear on Nomba |
-| `bvn` | string | No | BVN for KYC — stored encrypted (AES-256-GCM). Sets the linked customer to KYC Tier 1. |
-| `callbackUrl` | string | No | URL to receive payment events for this account |
-| `expectedAmount` | number | No | Fixed collection amount in naira. Enforced at rail level by Nomba. |
+| `bvn` | string | No | BVN for KYC — stored encrypted. Sets the linked customer to KYC Tier 1. |
+| `callbackUrl` | string | No | URL to receive payment notifications for this account |
+| `expectedAmount` | number | No | Naira amount the payer is expected to send. See note on fees below. |
+| `expiresAt` | string | No | ISO 8601 timestamp after which the account stops accepting payments |
+| `mode` | string | No | `"dedicated"` (default) or `"onetime"` — see [One-time accounts](#one-time-virtual-accounts) |
 
 ```bash
 curl -X POST https://api.kanall.dev/v1/accounts \
@@ -32,7 +34,7 @@ curl -X POST https://api.kanall.dev/v1/accounts \
     "externalRef": "driver-001",
     "name": "Emeka Okafor",
     "bvn": "12345678901",
-    "callbackUrl": "https://app.naijadash.com/webhooks/payment"
+    "callbackUrl": "https://app.chiogas.com/webhooks/payment"
   }'
 ```
 
@@ -50,8 +52,10 @@ curl -X POST https://api.kanall.dev/v1/accounts \
   "BankName": "Nomba MFB",
   "Currency": "NGN",
   "Status": "active",
-  "CallbackURL": "https://app.naijadash.com/webhooks/payment",
+  "Type": "dedicated",
+  "CallbackURL": "https://app.chiogas.com/webhooks/payment",
   "ExpectedAmount": null,
+  "ExpiresAt": null,
   "CreatedAt": "2026-07-01T10:30:00Z",
   "UpdatedAt": "2026-07-01T10:30:00Z"
 }
@@ -60,6 +64,81 @@ curl -X POST https://api.kanall.dev/v1/accounts \
 :::note About customers
 Provisioning a virtual account automatically creates (or reuses) a `Customer` record linked to the account via `CustomerID`. Customers hold KYC tier state independently of any individual account. See the [Customers API](./customers) and [KYC](../concepts/kyc) for details.
 :::
+
+---
+
+## One-time virtual accounts
+
+By default, every virtual account is **dedicated** — it stays open permanently, receives unlimited payments, and gets reused if you provision the same `externalRef` again.
+
+For checkout-style scenarios (a food order, an e-commerce payment, a one-off invoice), you can create a **one-time** account instead. Set `"mode": "onetime"` in the provision request.
+
+One-time accounts behave differently in three ways:
+
+1. **No deduplication.** Each provisioning call creates a fresh account regardless of `externalRef`. This is intentional — you might have ten open checkouts for the same customer simultaneously.
+2. **Auto-expire on payment match.** If you set `expectedAmount`, Kanall automatically expires the account the moment a payment for that exact amount arrives. The NUBAN stops accepting transfers immediately.
+3. **Time limit.** If you set `expiresAt`, Nomba closes the account at that deadline even if no payment has been received.
+
+You can combine all three. If both `expectedAmount` and `expiresAt` are set, whichever happens first wins.
+
+**Scenario examples:**
+
+| Use case | Fields to set | What happens |
+|---|---|---|
+| Fixed checkout (food order ₦5,025) | `mode: onetime`, `expectedAmount: 5025` | Expires the moment ₦5,025 lands |
+| Time-limited open collection | `mode: onetime`, `expiresAt: "2026-07-07T23:59:00Z"` | Expires at midnight regardless of payment |
+| Fixed checkout with deadline | `mode: onetime`, `expectedAmount: 5025`, `expiresAt: "2026-07-07T23:59:00Z"` | Whichever happens first |
+
+:::tip Setting the right expectedAmount
+Nomba deducts a transfer fee from every inbound payment. If your order is ₦5,000 and you set `expectedAmount: 5000`, but the payer sends exactly ₦5,000, only ₦4,975 lands in your balance. To receive exactly ₦5,000, ask the payer to send ₦5,025 and set `expectedAmount: 5025`. Use `GET /v1/fees/calculate` to get the right figure without manual calculation.
+:::
+
+---
+
+## Fee calculation
+
+```
+GET /v1/fees/calculate?amount=5000
+```
+
+Nomba deducts a CBN NIP fee from every inbound bank transfer before the money reaches your balance. This endpoint tells you the gross amount a payer needs to send so you receive exactly the amount you specify.
+
+**Query parameters:**
+
+| Parameter | Description |
+|---|---|
+| `amount` | The naira amount you want to receive (decimal) |
+
+```bash
+curl "https://api.kanall.dev/v1/fees/calculate?amount=5000" \
+  -H "X-API-Key: ten_sk_..."
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "receive_amount": "5000.00",
+  "nomba_fee":      "25.00",
+  "send_amount":    "5025.00"
+}
+```
+
+| Field | Description |
+|---|---|
+| `receive_amount` | What lands in your balance |
+| `nomba_fee` | What Nomba takes |
+| `send_amount` | What you should ask the payer to transfer |
+
+**Current fee tiers** (CBN NIP, confirmed July 2026):
+
+| Transfer amount | Fee |
+|---|---|
+| Below ₦5,000 | ₦10 |
+| ₦5,000 – ₦50,000 | ₦25 |
+| Above ₦50,000 | ₦50 |
+
+The fee is charged to the receiver (you), not the sender. These tiers are set by the CBN and updated here when they change.
 
 ---
 
@@ -293,8 +372,8 @@ The transfer is queued — `status: "pending"` does not mean it has succeeded. U
 | `400` | `invalid amount` | Amount is zero, negative, or not a valid decimal |
 | `404` | `account not found` | `accountRef` does not exist or belongs to another tenant |
 
-:::note Balance is confirmed-only
-The balance check uses only `confirmed` ledger entries. `provisional` entries (unconfirmed inbound payments) are excluded. Funds are only settleable once the convergence sweep has confirmed them.
+:::note Balance and provisional entries
+The settlement balance check uses only `confirmed` ledger entries. Payments that arrived via webhook but haven't been confirmed yet (`provisional`) are not settleable. See [The Ledger](../concepts/ledger) for how confirmation works.
 :::
 
 ---

@@ -10,14 +10,18 @@ Kanall's ledger is a true double-entry accounting system. Every payment creates 
 
 ## Double-entry
 
-Every inbound payment posts exactly **two** `ledger_entries` rows sharing a `transaction_group_id`:
+Every inbound payment posts exactly **two** `ledger_entries` rows sharing a `transaction_group_id`.
 
-| Side | `account_type` | `account_id` | `direction` | Amount |
-|---|---|---|---|---|
-| Credit | `virtual_account` | virtual_account.id | `credit` | +₦5,000 |
-| Debit | `tenant_settlement` | tenants.id | `debit` | −₦5,000 |
+Say a payer sends ₦5,025 to a virtual account. Nomba deducts a ₦25 NIP fee, so ₦5,000 actually lands. Kanall records the net amount (₦5,000) — the fee is stored separately in the `fee` column for reporting, but never counted in the balance:
 
-The sum of all entries for any `transaction_group_id` is always **zero**. This is the fundamental invariant — it makes the ledger self-auditing. If the sum is not zero, something has gone wrong at the write layer.
+| Side | `account_type` | `account_id` | `direction` | `amount` | `fee` |
+|---|---|---|---|---|---|
+| Credit | `virtual_account` | virtual_account.id | `credit` | +₦5,000 | ₦25 |
+| Debit | `tenant_settlement` | tenants.id | `debit` | −₦5,000 | ₦25 |
+
+The sum of all `amount` values for any `transaction_group_id` is always **zero**. This is the fundamental invariant — it makes the ledger self-auditing.
+
+The `fee` column is informational. It tells you what Nomba charged on the transaction but it does not affect your balance. Your balance is purely the sum of `amount` values across all non-reversed credit and debit entries.
 
 ## Amounts
 
@@ -32,44 +36,59 @@ The API surfaces amounts as decimal strings in naira:
 
 ## Entry status
 
-Each entry moves through a status lifecycle:
+Each entry has a status that shows where it is in the confirmation process:
 
 | Status | Meaning |
 |---|---|
-| `provisional` | Payment received via webhook — recorded but not yet confirmed by Nomba's Transactions API |
-| `confirmed` | Convergence sweep verified this transaction against Nomba's canonical record |
-| `reversed` | Nomba did not confirm the transaction, or a reversal event was received — a new reversal entry group has been posted |
+| `provisional` | Payment received via webhook — recorded but not yet independently verified |
+| `confirmed` | Verified against Nomba's own transaction records. Safe to act on. |
+| `reversed` | A reversal entry group has been posted. Balance is restored. |
+| `needs_review` | The payment could not be confirmed or denied after 24 hours. Flagged for operator review. |
 
-**Do not treat `provisional` as settled.** A `provisional` entry means Nomba told us a payment happened via webhook. The convergence sweep will verify it against Nomba's Transactions API and either promote it to `confirmed` or post a reversal.
+**Do not treat `provisional` as final.** A `provisional` entry means Nomba told us a payment happened. The confirmation pipeline will verify it and promote it to `confirmed`. Until then, treat it as "pending."
 
-## The convergence sweep
+## How confirmation works
 
-Webhooks are hints. They can duplicate, arrive late, or arrive before Nomba's own records are consistent. The convergence sweep is a background goroutine that runs on a configurable interval and re-queries Nomba's Transactions API to find the truth.
+Kanall uses three layers to confirm payments, from fastest to slowest:
+
+**Layer 1 — Fast path (seconds)**
+
+The moment Kanall posts a webhook payment as `provisional`, it queues a confirmation job and immediately queries Nomba's single-transaction endpoint to verify the transaction exists. If Nomba confirms it, the entry is promoted to `confirmed` within seconds.
+
+**Layer 2 — Bulk sweep (minutes to hours)**
+
+A background goroutine runs on a regular interval. It fetches all transactions from Nomba's bulk transactions API over a 7-day window and confirms any `provisional` entries it finds there. This catches anything the fast path missed — for example, if Nomba's single-transaction endpoint was temporarily unavailable.
+
+**Layer 3 — Aged auditor (24+ hours)**
+
+If a `provisional` entry is still unconfirmed after 2 hours, the sweep makes one more targeted attempt to fetch it from Nomba. If it still can't confirm it after 24 hours, the entry is flagged as `needs_review` — meaning a human operator should check what happened. Kanall never automatically reverses entries; it only flags them.
 
 ```
 Webhook arrives
       │
       ▼
-Record as "provisional"
+Record as "provisional" → Layer 1 confirms within seconds (most payments)
       │
+      │ (if Layer 1 misses it)
       ▼
-Convergence sweep queries Nomba Transactions API
+Layer 2 bulk sweep confirms within hours
       │
-      ├──► Nomba confirms transaction ──► promote to "confirmed"
+      │ (if still provisional after 2h)
+      ▼
+Layer 3 targeted requery
       │
-      └──► Nomba does not confirm ──► post reversal entry group
+      ├──► Confirmed → promote to "confirmed"
+      │
+      └──► Still unresolved after 24h → flag as "needs_review"
 ```
 
-This design means your downstream logic should:
-- Show `provisional` entries as pending in your UI
-- Only act on financial consequences once an entry is `confirmed`
-- Accept that reversals can happen and handle them
+No automatic reversals happen anywhere in this pipeline. Reversals only occur if Nomba explicitly tells us a transaction was reversed.
 
 ## Reversals
 
-When a transaction cannot be confirmed, or Nomba issues a reversal, Kanall posts a **new entry group** — it never mutates the original entries. The reversal group has a `reverses_group_id` pointing at the group it corrects.
+When Nomba issues a reversal, Kanall posts a **new entry group** — it never mutates the original entries. The reversal group has a `reverses_group_id` pointing at the group it corrects.
 
-Reversal entries carry the same amounts but inverted directions, so the net effect on the ledger is zero. The original entries remain readable with their original `provisional` or `confirmed` status, and the reversal group carries the `reversed` status.
+Reversal entries carry the same amounts but inverted directions, so the net effect on the ledger stays at zero. The original entries remain readable, and the reversal group gets a `reversed` status.
 
 ## Reading the ledger
 

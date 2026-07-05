@@ -28,6 +28,7 @@ const sidebars: SidebarsConfig = {
         'api-reference/statement',
         'api-reference/webhooks',
         'api-reference/errors',
+        'api-reference/fees',
       ],
     },
     {

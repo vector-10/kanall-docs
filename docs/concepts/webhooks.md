@@ -28,23 +28,22 @@ If a virtual account has a `callbackUrl`, Kanall delivers a payment notification
 
 ```json
 {
-  "event": "payment_received",
+  "eventType": "payment.received",
+  "transactionGroupId": "9c4d1f3b-2e5a-4b7c-8d0e-1f2a3b4c5d6e",
   "accountRef": "driver-001",
-  "tenantId": "550e8400-...",
-  "transactionRef": "nom_txn_abc123",
-  "amount": "5000.00",
-  "fee": "0.60",
+  "amount": "4975.00",
+  "gross_amount": "5000.00",
+  "nomba_fee": "25.00",
   "currency": "NGN",
-  "narration": "Transfer from Chidi Emmanuel",
   "senderName": "Chidi Emmanuel",
-  "senderBank": "Access Bank",
-  "senderAccount": "0987654321",
-  "status": "provisional",
-  "timestamp": "2026-07-01T11:00:00Z"
+  "narration": "Transfer from Chidi Emmanuel",
+  "status": "provisional"
 }
 ```
 
-`amount` is in naira. `status` reflects the ledger status at the time of delivery — typically `provisional`. Your system should handle subsequent `confirmed` or `reversed` events from the convergence sweep.
+`amount` is the net naira amount credited to the balance — after Nomba's NIP fee is deducted. `gross_amount` is what the payer sent. `nomba_fee` is what Nomba kept. All three are decimal strings.
+
+`status` is always `"provisional"` at delivery time. Kanall's confirmation pipeline will verify the payment against Nomba's records shortly after, usually within seconds. Until that happens, treat the payment as pending in your UI.
 
 ## Retry behaviour
 

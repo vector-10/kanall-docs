@@ -28,8 +28,10 @@ When a customer transfers money to that NUBAN — from any bank, any channel —
 | `BankName` | The bank name (e.g. "Nomba MFB") |
 | `Currency` | Always `NGN` at this time |
 | `Status` | Current lifecycle state: `active` or `expired` |
+| `Type` | `dedicated` or `onetime` — set at provisioning, never changes |
 | `CallbackURL` | Your endpoint that receives payment events for this account |
 | `ExpectedAmount` | Optional fixed collection amount (see below) |
+| `ExpiresAt` | Optional timestamp when the account will stop accepting payments |
 
 ## Account references
 
@@ -43,21 +45,41 @@ Kanall uses three identifiers for an account:
 
 Every virtual account is linked to a `Customer` record via `CustomerID`. The customer holds the KYC tier state (Tier 1, 2, or 3 per CBN guidelines). One customer can have multiple virtual accounts, and their KYC tier applies across all of them. See [KYC](./kyc) for the full tier model.
 
-## Expected amount
+## Dedicated vs one-time accounts
 
-If you pass `expectedAmount` when provisioning, Nomba enforces it at the payment rail level: any transfer that doesn't match the exact amount will be rejected by Nomba before it reaches Kanall. This is useful for fixed-price collection scenarios (school fees, membership dues, delivery charges).
+A **dedicated** account (the default) stays open indefinitely and can receive any number of payments. If you try to provision the same `externalRef` again, Kanall returns the existing account rather than creating a duplicate. This is the right model for entities that receive payments over time — a driver who gets paid per delivery, a merchant with a standing collection account.
+
+A **one-time** account is designed for a single transaction. It closes itself after that transaction happens. Set `"mode": "onetime"` when provisioning.
+
+One-time accounts are ideal for checkouts. When someone is about to pay for a food order or complete an e-commerce purchase, you create a one-time account for that specific payment, show the customer the NUBAN, and the account disappears once the money arrives.
 
 ```json
 {
-  "externalRef": "invoice-4521",
-  "name": "Supplier Payment — July",
-  "expectedAmount": 250000.00
+  "externalRef": "order-88712",
+  "name": "Chowdeck Order #88712",
+  "mode": "onetime",
+  "expectedAmount": 6525.00,
+  "expiresAt": "2026-07-07T23:00:00Z"
 }
 ```
 
-`expectedAmount` is in naira. Kanall converts to kobo before sending to Nomba.
+**How auto-expiry works:**
 
-When an amount mismatch does land (edge case), Kanall records it as a fact without taking action. Your webhook payload and statement will show the actual amount received. What you do with that is your business logic.
+- If you set `expectedAmount` — the account expires the moment a payment for that exact amount arrives. Kanall calls Nomba's expire endpoint and marks the account as `expired` in the same step.
+- If you set `expiresAt` — Nomba closes the account at that time even if nothing has been paid.
+- If you set both — whichever happens first wins.
+
+Payments that arrive on an already-expired account are flagged as misdirected and are not credited to any balance.
+
+## Expected amount and fees
+
+When you set `expectedAmount`, you're telling Nomba (and Kanall) the exact naira amount the payer should send. The number you set here should account for the transfer fee that Nomba will deduct.
+
+For example: your order total is ₦5,000. Nomba will deduct a ₦25 NIP fee. If you set `expectedAmount: 5000` and your customer sends exactly ₦5,000, only ₦4,975 lands. To receive the full ₦5,000, set `expectedAmount: 5025` and tell your customer to send ₦5,025.
+
+Use `GET /v1/fees/calculate?amount=5000` to get the correct `send_amount` and `expectedAmount` to set, without calculating it yourself.
+
+See [Fees](../api-reference/accounts#fee-calculation) for the full fee tier table.
 
 ## Balance
 

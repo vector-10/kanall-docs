@@ -32,20 +32,21 @@ When a payment arrives on any virtual account provisioned under your sub-account
 
 ```json
 {
-  "event_type": "vact_transfer",
-  "requestId": "3f9a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+  "event_type": "payment_success",
+  "requestId": "17ef290f-ceff-4b6d-bd66-f1744fa96406",
   "data": {
     "merchant": {
-      "userId": "f666ef9b-888e-4799-85ce-acb505b28023",
-      "walletId": "22f28de5-899a-49e8-ae05-f11d66250a74"
+      "userId": "22f28de5-899a-49e8-ae05-f11d66250a74",
+      "walletId": "6a3bea8ba3da553c0da570cf",
+      "walletBalance": 4975
     },
     "transaction": {
-      "transactionId": "nom_txn_abc123",
+      "transactionId": "API-VACT_TRA-22F28-c7912a15-f3e2-4ade-99bb-cb268a143d27",
       "type": "vact_transfer",
-      "time": "2026-07-01T11:00:00.000Z",
+      "time": "2026-07-03T10:47:15Z",
       "responseCode": "",
-      "transactionAmount": 500000,
-      "fee": 10.75,
+      "transactionAmount": 5000,
+      "fee": 25,
       "currency": "NGN",
       "aliasAccountReference": "driver-001",
       "narration": "Transfer from Chidi Emmanuel"
@@ -59,8 +60,8 @@ When a payment arrives on any virtual account provisioned under your sub-account
 }
 ```
 
-:::note Amounts are in kobo
-`transactionAmount: 500000` = ₦5,000.00. `fee: 10.75` is in naira (a float). Kanall converts to naira before storing in the ledger.
+:::note Amounts in the webhook are in naira
+`transactionAmount: 5000` means ₦5,000 — the gross amount the payer sent. `fee: 25` is also in naira — the NIP fee Nomba deducted. Kanall records the net (`transactionAmount - fee` = ₦4,975) in the ledger. The bulk transactions list API uses kobo, but the webhook payload uses naira.
 :::
 
 **Key field mappings:**
@@ -69,9 +70,10 @@ When a payment arrives on any virtual account provisioned under your sub-account
 |---|---|
 | `requestId` | Idempotency key — stored in `processed_events`. Stable across Nomba retries. |
 | `data.transaction.transactionId` | `ledger_entries.NombaTxnRef` |
-| `data.transaction.aliasAccountReference` | Used to look up `virtual_accounts.account_ref` |
-| `data.transaction.transactionAmount` | `ledger_entries.Amount` (converted from kobo to naira) |
-| `data.customer.senderName` | `ledger_entries.Narration` |
+| `data.transaction.aliasAccountReference` | Used to look up the matching virtual account |
+| `data.transaction.transactionAmount` | Gross amount — used for fee calculation and `expectedAmount` matching |
+| `data.transaction.fee` | Nomba's NIP fee — subtracted from gross to get the net ledger amount |
+| `data.customer.senderName` | Stored as narration on the ledger entry |
 
 Kanall always returns `200 OK` to Nomba — including on signature failures and already-processed events — to prevent Nomba from retrying indefinitely.
 
@@ -118,7 +120,9 @@ When a payment is received, Kanall delivers a webhook to the `callbackUrl` you r
   "eventType": "payment.received",
   "transactionGroupId": "9c4d1f3b-2e5a-4b7c-8d0e-1f2a3b4c5d6e",
   "accountRef": "driver-001",
-  "amount": "5000.00",
+  "amount": "4975.00",
+  "gross_amount": "5000.00",
+  "nomba_fee": "25.00",
   "currency": "NGN",
   "senderName": "Chidi Emmanuel",
   "narration": "Transfer from Chidi Emmanuel",
@@ -126,7 +130,15 @@ When a payment is received, Kanall delivers a webhook to the `callbackUrl` you r
 }
 ```
 
-`status` is always `"provisional"` on initial delivery. The convergence sweep later confirms or reverses the entry — query the [Statement API](./statement) to check the final status.
+| Field | Description |
+|---|---|
+| `amount` | Net amount credited to the balance (after Nomba's fee) |
+| `gross_amount` | What the payer actually sent |
+| `nomba_fee` | The NIP fee Nomba deducted |
+| `transactionGroupId` | Kanall's internal group ID — use this to look up entries in the statement |
+| `status` | Always `"provisional"` on initial delivery |
+
+`status` is always `"provisional"` at delivery time. The confirmation pipeline promotes it to `confirmed` shortly after — usually within seconds. Query the [Statement API](./statement) if you need to check the current status of a specific entry.
 
 Kanall retries failed deliveries with exponential backoff across up to 5 attempts (2 min → 5 min → 11 min → 24 min → 53 min). Deliveries that exhaust all attempts become dead letters.
 
