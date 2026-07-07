@@ -11,7 +11,7 @@ At the end of each day, PrimeLine's finance team needs to know: for each sales a
 ## Query a retailer's statement
 
 ```bash
-curl https://api.kanall.dev/v1/accounts/retailer-00142/statement \
+curl https://kanall.onrender.com/v1/accounts/retailer-00142/statement \
   -H "X-API-Key: $KANALL_API_KEY"
 ```
 

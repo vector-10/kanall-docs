@@ -22,7 +22,7 @@ Returns a paginated ledger statement for a virtual account, including aggregate 
 | `after` | string | Cursor for the next page |
 
 ```bash
-curl https://api.kanall.dev/v1/accounts/driver-001/statement \
+curl https://kanall.onrender.com/v1/accounts/driver-001/statement \
   -H "X-API-Key: ten_sk_..."
 ```
 

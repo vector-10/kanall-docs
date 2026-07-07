@@ -30,7 +30,7 @@ Registration triggers an OTP email. Verify the OTP to receive your API key.
 **Step 1 — Register:**
 
 ```bash
-curl -X POST https://api.kanall.dev/register \
+curl -X POST https://kanall.onrender.com/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Your Organisation",
@@ -48,7 +48,7 @@ curl -X POST https://api.kanall.dev/register \
 **Step 2 — Verify email:**
 
 ```bash
-curl -X POST https://api.kanall.dev/auth/verify-email \
+curl -X POST https://kanall.onrender.com/auth/verify-email \
   -H "Content-Type: application/json" \
   -d '{
     "tenantId": "550e8400-e29b-41d4-a716-446655440000",
@@ -76,7 +76,7 @@ Dashboard sessions and API keys are completely independent. An API key does not 
 ### Login
 
 ```bash
-curl -X POST https://api.kanall.dev/auth/login \
+curl -X POST https://kanall.onrender.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "ops@yourcompany.ng", "password": "secure-password"}'
 ```
@@ -84,7 +84,7 @@ curl -X POST https://api.kanall.dev/auth/login \
 ### Logout
 
 ```bash
-curl -X POST https://api.kanall.dev/auth/logout
+curl -X POST https://kanall.onrender.com/auth/logout
 ```
 
 ---
@@ -102,7 +102,7 @@ GET /auth/me
 Returns the authenticated tenant's profile.
 
 ```bash
-curl https://api.kanall.dev/auth/me
+curl https://kanall.onrender.com/auth/me
 ```
 
 ```json
@@ -135,7 +135,7 @@ POST /auth/rotate-key
 Generates a new API key and immediately invalidates the previous one. Returns the new raw key — store it immediately.
 
 ```bash
-curl -X POST https://api.kanall.dev/auth/rotate-key
+curl -X POST https://kanall.onrender.com/auth/rotate-key
 ```
 
 ```json
@@ -162,7 +162,7 @@ Submits your organisation's business verification details. This moves your accou
 | `cacNumber` | string | No | CAC registration number (e.g. `RC-1234567`) |
 
 ```bash
-curl -X POST https://api.kanall.dev/auth/business-kyc \
+curl -X POST https://kanall.onrender.com/auth/business-kyc \
   -H "Content-Type: application/json" \
   -d '{
     "businessType": "registered_business",
@@ -190,7 +190,7 @@ POST /auth/webhook-secret
 Returns your outbound webhook signing secret. If you have not generated one yet, this creates and stores a new secret. Calling it again reveals the existing secret.
 
 ```bash
-curl -X POST https://api.kanall.dev/auth/webhook-secret
+curl -X POST https://kanall.onrender.com/auth/webhook-secret
 ```
 
 ```json
@@ -216,7 +216,7 @@ Returns webhook events that passed signature verification but whose `aliasAccoun
 This endpoint is **session-only** (dashboard access) — it is not available via API key. Misdirected events are system-wide; they have no tenant owner by definition.
 
 ```bash
-curl https://api.kanall.dev/auth/misdirected
+curl https://kanall.onrender.com/auth/misdirected
 ```
 
 ```json

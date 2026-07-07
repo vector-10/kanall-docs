@@ -27,7 +27,7 @@ Creates a new virtual account and provisions a NUBAN via Nomba.
 | `mode` | string | No | `"dedicated"` (default) or `"onetime"` — see [One-time accounts](#one-time-virtual-accounts) |
 
 ```bash
-curl -X POST https://api.kanall.dev/v1/accounts \
+curl -X POST https://kanall.onrender.com/v1/accounts \
   -H "X-API-Key: ten_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -110,7 +110,7 @@ Nomba deducts a CBN NIP fee from every inbound bank transfer before the money re
 | `amount` | The naira amount you want to receive (decimal) |
 
 ```bash
-curl "https://api.kanall.dev/v1/fees/calculate?amount=5000" \
+curl "https://kanall.onrender.com/v1/fees/calculate?amount=5000" \
   -H "X-API-Key: ten_sk_..."
 ```
 
@@ -158,7 +158,7 @@ Returns a paginated list of virtual accounts for the authenticated tenant.
 | `after` | string | Cursor for the next page — value of `nextCursor` from previous response |
 
 ```bash
-curl https://api.kanall.dev/v1/accounts \
+curl https://kanall.onrender.com/v1/accounts \
   -H "X-API-Key: ten_sk_..."
 ```
 
@@ -186,7 +186,7 @@ GET /v1/accounts/:accountRef
 Returns a single virtual account by its `AccountRef` (your `externalRef`).
 
 ```bash
-curl https://api.kanall.dev/v1/accounts/driver-001 \
+curl https://kanall.onrender.com/v1/accounts/driver-001 \
   -H "X-API-Key: ten_sk_..."
 ```
 
@@ -211,7 +211,7 @@ Updates mutable fields on a virtual account. At least one field is required.
 | `name` | string | Rename the account holder name on record |
 
 ```bash
-curl -X PATCH https://api.kanall.dev/v1/accounts/driver-001 \
+curl -X PATCH https://kanall.onrender.com/v1/accounts/driver-001 \
   -H "X-API-Key: ten_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -234,10 +234,10 @@ Renaming via `PATCH` updates the `BankAccountName` field in Kanall's ledger only
 GET /v1/accounts/:accountRef/balance
 ```
 
-Returns the current ledger balance for a virtual account — the sum of all confirmed credit entries minus all confirmed debit entries. Provisional and reversed entries are excluded.
+Returns the current ledger balance for a virtual account — the sum of all confirmed and provisional credit entries minus all confirmed and provisional debit entries. `needs_review` and `reversed` entries are excluded.
 
 ```bash
-curl https://api.kanall.dev/v1/accounts/driver-001/balance \
+curl https://kanall.onrender.com/v1/accounts/driver-001/balance \
   -H "X-API-Key: ten_sk_..."
 ```
 
@@ -264,7 +264,7 @@ GET /v1/accounts/:accountRef/history
 Returns a chronological log of all status transitions for the account (e.g. `active → expired`).
 
 ```bash
-curl https://api.kanall.dev/v1/accounts/driver-001/history \
+curl https://kanall.onrender.com/v1/accounts/driver-001/history \
   -H "X-API-Key: ten_sk_..."
 ```
 
@@ -306,7 +306,7 @@ POST /v1/accounts/:accountRef/expire
 Permanently closes an account. **This action is irreversible.** Valid from `active` status only.
 
 ```bash
-curl -X POST https://api.kanall.dev/v1/accounts/driver-001/expire \
+curl -X POST https://kanall.onrender.com/v1/accounts/driver-001/expire \
   -H "X-API-Key: ten_sk_..."
 ```
 
@@ -339,7 +339,7 @@ Initiates an outbound bank transfer from a virtual account's confirmed ledger ba
 | `narration` | string | No | Transfer description (optional) |
 
 ```bash
-curl -X POST https://api.kanall.dev/v1/accounts/driver-001/settle \
+curl -X POST https://kanall.onrender.com/v1/accounts/driver-001/settle \
   -H "X-API-Key: ten_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -372,8 +372,8 @@ The transfer is queued — `status: "pending"` does not mean it has succeeded. U
 | `400` | `invalid amount` | Amount is zero, negative, or not a valid decimal |
 | `404` | `account not found` | `accountRef` does not exist or belongs to another tenant |
 
-:::note Balance and provisional entries
-The settlement balance check uses only `confirmed` ledger entries. Payments that arrived via webhook but haven't been confirmed yet (`provisional`) are not settleable. See [The Ledger](../concepts/ledger) for how confirmation works.
+:::note Balance and needs_review entries
+The settlement balance check includes both `confirmed` and `provisional` entries. Only `needs_review` and `reversed` entries are excluded — a payment flagged for operator review cannot be settled against. See [The Ledger](../concepts/ledger) for how confirmation works.
 :::
 
 ---
@@ -387,7 +387,7 @@ GET /v1/transfers/:merchantTxRef
 Returns the current status of a settlement job by its internal reference.
 
 ```bash
-curl https://api.kanall.dev/v1/transfers/knl_1751500000_abc12345 \
+curl https://kanall.onrender.com/v1/transfers/knl_1751500000_abc12345 \
   -H "X-API-Key: ten_sk_..."
 ```
 
@@ -440,7 +440,7 @@ Resolves a bank account number to an account name before initiating a settlement
 | `bankCode` | string | Yes | Nigerian bank code |
 
 ```bash
-curl -X POST https://api.kanall.dev/v1/transfers/lookup \
+curl -X POST https://kanall.onrender.com/v1/transfers/lookup \
   -H "X-API-Key: ten_sk_..." \
   -H "Content-Type: application/json" \
   -d '{"accountNumber": "0123456789", "bankCode": "044"}'
@@ -466,7 +466,7 @@ GET /v1/transfers/banks
 Returns a list of Nigerian banks and their codes, sourced from Nomba.
 
 ```bash
-curl https://api.kanall.dev/v1/transfers/banks \
+curl https://kanall.onrender.com/v1/transfers/banks \
   -H "X-API-Key: ten_sk_..."
 ```
 

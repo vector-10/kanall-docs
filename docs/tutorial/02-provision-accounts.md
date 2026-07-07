@@ -11,7 +11,7 @@ Each retailer in PrimeLine's customer database gets their own dedicated NUBAN. Y
 ## Provision a single account
 
 ```bash
-curl -X POST https://api.kanall.dev/v1/accounts \
+curl -X POST https://kanall.onrender.com/v1/accounts \
   -H "X-API-Key: $KANALL_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

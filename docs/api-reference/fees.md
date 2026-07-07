@@ -45,7 +45,7 @@ GET /v1/fees/calculate?amount=5000
 ```
 
 ```bash
-curl "https://api.kanall.dev/v1/fees/calculate?amount=5000" \
+curl "https://kanall.onrender.com/v1/fees/calculate?amount=5000" \
   -H "X-API-Key: ten_sk_..."
 ```
 

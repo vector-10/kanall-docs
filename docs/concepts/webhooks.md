@@ -99,4 +99,4 @@ nomba-signature-version: 1.0.0
 nomba-timestamp: <unix timestamp>
 ```
 
-The signing secret is configured via the `NOMBA_WEBHOOK_SIGNING_SECRET` environment variable and is never stored in source code.
+The signing secret is configured via the `NOMBA_WEBHOOKS_SIGNING_SECRET` environment variable and is never stored in source code.

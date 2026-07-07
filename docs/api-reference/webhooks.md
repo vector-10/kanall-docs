@@ -89,7 +89,7 @@ Nomba signs each webhook request with HMAC-SHA256. Kanall verifies this automati
 
 `responseCode == "null"` (the string) is normalised to `""` before signing.
 
-Verification uses the `nomba-signature` and `nomba-timestamp` headers. The signing secret is set via the `NOMBA_WEBHOOK_SIGNING_SECRET` environment variable — never hardcoded.
+Verification uses the `nomba-signature` and `nomba-timestamp` headers. The signing secret is set via the `NOMBA_WEBHOOKS_SIGNING_SECRET` environment variable — never hardcoded.
 
 ---
 
@@ -210,7 +210,7 @@ GET /v1/webhooks/dead-letters
 Returns outbound webhook deliveries that exhausted all retry attempts and were permanently marked as failed.
 
 ```bash
-curl https://api.kanall.dev/v1/webhooks/dead-letters \
+curl https://kanall.onrender.com/v1/webhooks/dead-letters \
   -H "X-API-Key: ten_sk_..."
 ```
 

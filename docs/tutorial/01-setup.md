@@ -11,7 +11,7 @@ sidebar_label: "1. Setup"
 Call the registration endpoint once. This is a one-time setup for PrimeLine Distribution as an organisation.
 
 ```bash
-curl -X POST https://api.kanall.dev/register \
+curl -X POST https://kanall.onrender.com/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "PrimeLine Distribution",
@@ -41,7 +41,7 @@ Add the API key to your backend's environment variables — never in source code
 ```bash
 # .env
 KANALL_API_KEY=kan_sk_4a3b2c1d9e8f7a6b5c4d3e2f1a0b...
-KANALL_BASE_URL=https://api.kanall.dev
+KANALL_BASE_URL=https://kanall.onrender.com
 WEBHOOK_SECRET=your-webhook-validation-token  # optional internal use
 ```
 
@@ -90,14 +90,14 @@ module.exports = { kanallRequest }
 ## Verify your setup
 
 ```bash
-curl https://api.kanall.dev/health
+curl https://kanall.onrender.com/health
 # { "status": "ok" }
 
-curl https://api.kanall.dev/auth/me \
+curl https://kanall.onrender.com/auth/me \
   # Note: /auth/me requires dashboard session cookie, not API key
   # Use /v1/accounts for API key verification:
 
-curl https://api.kanall.dev/v1/accounts \
+curl https://kanall.onrender.com/v1/accounts \
   -H "X-API-Key: $KANALL_API_KEY"
 # { "accounts": [], "pagination": { "hasMore": false } }
 ```

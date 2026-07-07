@@ -16,7 +16,7 @@ In under 5 minutes you will have a registered tenant, a provisioned virtual acco
 Set your base URL:
 
 ```bash
-export KANALL_URL=http://localhost:8080
+export KANALL_URL=https://kanall.onrender.com
 ```
 
 ---

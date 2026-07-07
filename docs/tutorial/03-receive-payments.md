@@ -168,7 +168,7 @@ ngrok http 3000
 Update your retailer's `callbackUrl` to the ngrok URL:
 
 ```bash
-curl -X PATCH https://api.kanall.dev/v1/accounts/retailer-00142 \
+curl -X PATCH https://kanall.onrender.com/v1/accounts/retailer-00142 \
   -H "X-API-Key: $KANALL_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "callbackUrl": "https://abc123.ngrok.io/webhooks/payment" }'

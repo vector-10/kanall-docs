@@ -28,7 +28,7 @@ Returns a paginated list of customers for the authenticated tenant.
 | `after` | string | Cursor for next page — value of `nextCursor` from previous response |
 
 ```bash
-curl https://api.kanall.dev/v1/customers \
+curl https://kanall.onrender.com/v1/customers \
   -H "X-API-Key: ten_sk_..."
 ```
 
@@ -70,7 +70,7 @@ GET /v1/customers/:id
 Returns a single customer by Kanall's internal UUID.
 
 ```bash
-curl https://api.kanall.dev/v1/customers/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+curl https://kanall.onrender.com/v1/customers/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
   -H "X-API-Key: ten_sk_..."
 ```
 
@@ -111,7 +111,7 @@ Updates the customer's display name.
 | `name` | string | Yes | New display name for the customer |
 
 ```bash
-curl -X PATCH https://api.kanall.dev/v1/customers/a1b2c3d4-... \
+curl -X PATCH https://kanall.onrender.com/v1/customers/a1b2c3d4-... \
   -H "X-API-Key: ten_sk_..." \
   -H "Content-Type: application/json" \
   -d '{"name": "Emeka Chukwuemeka Okafor"}'
@@ -142,7 +142,7 @@ Submits the customer's NIN and a document image for Tier 2 review. This does **n
 | `nin_document` | string | Yes | Base64-encoded NIN slip or government-issued ID image |
 
 ```bash
-curl -X POST https://api.kanall.dev/v1/customers/a1b2c3d4-.../kyc \
+curl -X POST https://kanall.onrender.com/v1/customers/a1b2c3d4-.../kyc \
   -H "X-API-Key: ten_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -188,7 +188,7 @@ Approves a pending KYC submission. Sets `KYCTier` to `2` and `KYCStatus` to `app
 - `KYCStatus` must be `pending_review`
 
 ```bash
-curl -X POST https://api.kanall.dev/auth/customers/a1b2c3d4-.../kyc/approve \
+curl -X POST https://kanall.onrender.com/auth/customers/a1b2c3d4-.../kyc/approve \
   -H "Cookie: session=..." 
 ```
 
@@ -215,7 +215,7 @@ Rejects a pending KYC submission. Sets `KYCStatus` to `rejected`. The customer m
 - `KYCStatus` must be `pending_review`
 
 ```bash
-curl -X POST https://api.kanall.dev/auth/customers/a1b2c3d4-.../kyc/reject \
+curl -X POST https://kanall.onrender.com/auth/customers/a1b2c3d4-.../kyc/reject \
   -H "Cookie: session=..."
 ```
 
