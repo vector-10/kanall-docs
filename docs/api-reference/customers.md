@@ -40,8 +40,8 @@ curl https://kanall.onrender.com/v1/customers \
     {
       "ID": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "TenantID": "550e8400-e29b-41d4-a716-446655440000",
-      "ExternalRef": "driver-001",
-      "Name": "Emeka Okafor",
+      "ExternalRef": "bokku-ikeja",
+      "Name": "Bokku Ikeja Branch",
       "BVNLast4": "8901",
       "NINLast4": null,
       "KYCTier": 1,
@@ -89,10 +89,10 @@ curl https://kanall.onrender.com/v1/customers/a1b2c3d4-e5f6-7890-abcd-ef12345678
 | `BVNLast4` | Last 4 digits of the BVN on record, or `null` if not provided |
 | `NINLast4` | Last 4 digits of the NIN on record, or `null` if not yet submitted |
 | `KYCTier` | CBN KYC tier: `1`, `2`, or `3` |
-| `KYCStatus` | KYC submission status: `none`, `pending_review`, `approved`, or `rejected` — see [KYC status machine](../concepts/kyc#kyc-status-machine) |
+| `KYCStatus` | KYC submission status: `none`, `pending_review`, `approved`, or `rejected` |
 | `Status` | Customer status: `active` or `suspended` |
 
-Full BVN and NIN values are never returned — only the last 4 digits for display purposes. The raw values are stored encrypted (AES-256-GCM).
+Full BVN and NIN values are never returned — only the last 4 digits for display purposes. The raw values are stored encrypted and cannot be recovered via the API.
 
 ---
 
@@ -114,7 +114,7 @@ Updates the customer's display name.
 curl -X PATCH https://kanall.onrender.com/v1/customers/a1b2c3d4-... \
   -H "X-API-Key: ten_sk_..." \
   -H "Content-Type: application/json" \
-  -d '{"name": "Emeka Chukwuemeka Okafor"}'
+  -d '{"name": "Bokku Ikeja Flagship"}'
 ```
 
 **Response:** `200 OK` — Updated customer object
@@ -127,7 +127,7 @@ curl -X PATCH https://kanall.onrender.com/v1/customers/a1b2c3d4-... \
 GET /v1/customers/:id/account
 ```
 
-Returns the virtual account (NUBAN) linked to this customer. Every customer has exactly one dedicated account once provisioned.
+Returns the virtual account (NUBAN) linked to this customer.
 
 ```bash
 curl https://kanall.onrender.com/v1/customers/a1b2c3d4-.../account \
@@ -139,17 +139,12 @@ curl https://kanall.onrender.com/v1/customers/a1b2c3d4-.../account \
 ```json
 {
   "ID": "7f3e2d1c-...",
-  "TenantID": "550e8400-...",
-  "CustomerID": "a1b2c3d4-...",
-  "AccountRef": "driver-001",
-  "Provider": "nomba",
-  "BankAccountNumber": "2572780397",
-  "BankAccountName": "Emeka Okafor",
-  "BankName": "Nomba",
+  "AccountRef": "bokku-ikeja",
+  "BankAccountNumber": "0123456789",
+  "BankAccountName": "Bokku Ikeja Branch",
+  "BankName": "Nomba MFB",
   "Currency": "NGN",
-  "Status": "active",
-  "CreatedAt": "2026-07-01T10:30:00Z",
-  "UpdatedAt": "2026-07-01T10:30:00Z"
+  "Status": "active"
 }
 ```
 
@@ -169,7 +164,7 @@ Use the `AccountRef` from this response to call `/v1/accounts/:ref/statement` or
 POST /v1/customers/:id/kyc
 ```
 
-Submits the customer's NIN for Tier 2 verification. Kanall verifies the NIN against Mono Identity in real time. If verification succeeds, `KYCTier` is immediately promoted to `2`. If the verification service is unavailable, the submission falls back to `pending_review` for operator approval.
+Submits the customer's NIN for Tier 2 verification via Mono Identity. If verification succeeds, `KYCTier` is immediately promoted to `2`. If the verification service is unavailable, the submission falls back to `pending_review` for operator approval.
 
 **Requirements:**
 - Customer must currently be at Tier 1 with `KYCStatus` of `none` or `rejected`
@@ -210,10 +205,6 @@ curl -X POST https://kanall.onrender.com/v1/customers/a1b2c3d4-.../kyc \
 }
 ```
 
-:::note
-When `KYCStatus` is `pending_review`, an operator can approve or reject via the admin endpoints below. Tier is only bumped when `KYCStatus` reaches `approved`.
-:::
-
 **Error responses:**
 
 | Status | Error | Reason |
@@ -224,13 +215,13 @@ When `KYCStatus` is `pending_review`, an operator can approve or reject via the 
 
 ---
 
-## Approve KYC submission (admin)
+## Approve KYC submission
 
 ```
 POST /auth/customers/:id/kyc/approve
 ```
 
-Approves a pending KYC submission. Sets `KYCTier` to `2` and `KYCStatus` to `approved`. Requires session authentication (dashboard operator).
+Approves a pending KYC submission. Sets `KYCTier` to `2` and `KYCStatus` to `approved`. Requires dashboard session authentication — this is an operator action, not an API key action.
 
 **Requirements:**
 - `KYCStatus` must be `pending_review`
@@ -242,25 +233,15 @@ curl -X POST https://kanall.onrender.com/auth/customers/a1b2c3d4-.../kyc/approve
 
 **Response:** `200 OK` — Updated customer object with `KYCTier: 2`, `KYCStatus: "approved"`
 
-**Error responses:**
-
-| Status | Error | Reason |
-|---|---|---|
-| `400` | `customer is not pending review` | `KYCStatus` is not `pending_review` |
-| `404` | `customer not found` | Invalid customer ID |
-
 ---
 
-## Reject KYC submission (admin)
+## Reject KYC submission
 
 ```
 POST /auth/customers/:id/kyc/reject
 ```
 
-Rejects a pending KYC submission. Sets `KYCStatus` to `rejected`. The customer may resubmit after rejection. Requires session authentication (dashboard operator).
-
-**Requirements:**
-- `KYCStatus` must be `pending_review`
+Rejects a pending KYC submission. Sets `KYCStatus` to `rejected`. The customer may resubmit after rejection. Requires dashboard session authentication.
 
 ```bash
 curl -X POST https://kanall.onrender.com/auth/customers/a1b2c3d4-.../kyc/reject \
@@ -268,13 +249,6 @@ curl -X POST https://kanall.onrender.com/auth/customers/a1b2c3d4-.../kyc/reject 
 ```
 
 **Response:** `200 OK` — Updated customer object with `KYCStatus: "rejected"`
-
-**Error responses:**
-
-| Status | Error | Reason |
-|---|---|---|
-| `400` | `customer is not pending review` | `KYCStatus` is not `pending_review` |
-| `404` | `customer not found` | Invalid customer ID |
 
 ---
 

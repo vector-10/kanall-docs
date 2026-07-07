@@ -19,20 +19,6 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'API Reference',
-      collapsed: false,
-      items: [
-        'api-reference/authentication',
-        'api-reference/accounts',
-        'api-reference/customers',
-        'api-reference/statement',
-        'api-reference/webhooks',
-        'api-reference/errors',
-        'api-reference/fees',
-      ],
-    },
-    {
-      type: 'category',
       label: 'Guides',
       collapsed: false,
       items: [
@@ -41,7 +27,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Tutorial: Logistics Integration',
+      label: 'Tutorial: FMCG Integration',
       collapsed: false,
       items: [
         'tutorial/index',
@@ -50,6 +36,24 @@ const sidebars: SidebarsConfig = {
         'tutorial/03-receive-payments',
         'tutorial/04-reconcile',
         'tutorial/05-settle',
+      ],
+    },
+  ],
+
+  apiSidebar: [
+    {
+      type: 'category',
+      label: 'API Reference',
+      collapsed: false,
+      items: [
+        'api-reference/authentication',
+        'api-reference/accounts',
+        'api-reference/transfers',
+        'api-reference/customers',
+        'api-reference/statement',
+        'api-reference/webhooks',
+        'api-reference/fees',
+        'api-reference/errors',
       ],
     },
   ],

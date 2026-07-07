@@ -21,7 +21,7 @@ X-API-Key: ten_sk_4a3b2c1d...
 **Rules:**
 - Store your API key in environment variables only — never in source code, client-side JavaScript, or version control
 - If your key is compromised, rotate it via `POST /auth/rotate-key` (dashboard session required)
-- All API key requests are rate-limited per key (see [Tenants — Rate limits](../concepts/tenants#rate-limits))
+- All API key requests are rate-limited per key. Requests that exceed the limit receive `429 Too Many Requests`.
 
 ### Obtaining an API key
 

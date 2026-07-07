@@ -41,9 +41,13 @@ Tier 1 is the default for customers who provide a BVN at account provision time.
 
 - **Requirement:** BVN on file **and** National Identification Number (NIN)
 - **Initiated via** `POST /v1/customers/:id/kyc` by your backend
-- **Verified automatically** via Mono Identity — if verification succeeds, tier bumps to 2 immediately; if the service is unavailable, submission falls back to `pending_review` for operator approval
+- **Verified via Mono Identity** — if verification succeeds, tier bumps to 2 immediately; if the service is unavailable, submission falls back to `pending_review` for operator approval
 - **Daily transaction limit:** ₦200,000
 - **Maximum balance:** ₦500,000
+
+:::note Mono Identity is in demo mode
+NIN verification is currently powered by Mono Identity in demo mode. Submitting a NIN returns a simulated verification result — it is not checking real government records. This will be upgraded to production Mono access post-hackathon.
+:::
 
 ### Tier 3 — Full KYC
 
@@ -68,13 +72,9 @@ none → pending_review → approved   (KYCTier bumps to 2)
 | Status | Meaning |
 |---|---|
 | `none` | No NIN submitted yet. Tier 2 upgrade available. |
-| `pending_review` | NIN submitted. Mono verification was unavailable — awaiting operator approval. Resubmission blocked. |
+| `pending_review` | NIN submitted, awaiting operator approval. Resubmission blocked. |
 | `approved` | NIN verified (auto or operator). `KYCTier` is now `2`. |
 | `rejected` | Operator rejected. Customer may resubmit with a corrected NIN. |
-
-### Verification flow
-
-NIN submissions are verified in real time via **Mono Identity** (`POST /v3/lookup/nin`). When verification succeeds, the tier is promoted to 2 in the same response — no operator step required. If Mono is unavailable or the account lacks access, the submission is stored encrypted and set to `pending_review` for operator approval via the dashboard. The fallback path ensures no submission is silently lost.
 
 ---
 
@@ -96,7 +96,4 @@ Kanall records and reports the tier. The actual transaction limit enforcement ha
 
 ## Security
 
-- BVN and NIN values are stored encrypted with AES-256-GCM. The encryption key is set via the `ENCRYPTION_KEY` environment variable — never hardcoded.
-- Only the last 4 digits (`BVNLast4`, `NINLast4`) are returned in API responses.
-- The raw NIN value cannot be recovered from the API under any circumstances.
-- A `verification_ref` from Mono is stored on the customer record when auto-verification succeeds, providing an audit trail back to the identity check.
+Identity documents are stored encrypted. Only the last 4 digits of a BVN or NIN (`BVNLast4`, `NINLast4`) are returned in API responses. The raw values cannot be recovered from the API under any circumstances.

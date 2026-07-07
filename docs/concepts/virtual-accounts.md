@@ -8,7 +8,7 @@ sidebar_label: Virtual Accounts
 
 A virtual account is a real Nigerian bank account number (NUBAN) that belongs to one entity in your platform and one entity only. When someone sends money to that NUBAN — from any bank, any channel — Kanall knows exactly who it's for, records it in the ledger, and notifies your endpoint. No reference matching. No spreadsheet reconciliation.
 
-This is the core of what Kanall does. Everything else — the ledger, the confirmation pipeline, settlement — exists to make this attribution reliable.
+This is the core of what Kanall does. Everything else — the ledger, the confirmation pipeline, settlement — exists to make this ownership tracking reliable.
 
 ---
 
@@ -19,7 +19,19 @@ This is the core of what Kanall does. Everything else — the ledger, the confir
 3. Nomba assigns a real account number that can receive NIP transfers from any bank in Nigeria
 4. You share the NUBAN with whoever is paying — they transfer, Kanall records it and notifies you
 
-The NUBAN is permanent. Provision it once per entity and reuse it across all future transactions.
+The bank name will appear as **Nomba MFB** (Nomba Microfinance Bank) in the sender's banking app. This is normal — it reflects that the underlying account is on Nomba's rails.
+
+---
+
+## Account references
+
+Kanall uses three identifiers for an account — they mean different things:
+
+- **`AccountRef`** — Equal to your `externalRef`. This is what you use in every API call. For example, if you provisioned with `"externalRef": "bokku-ikeja"`, you fetch that account with `GET /v1/accounts/bokku-ikeja`.
+- **`BankAccountNumber`** — The NUBAN (10-digit Nigerian bank account number). This is what you share with payers. It is never used in API calls.
+- **`ID`** — Kanall's internal UUID. Only needed if you maintain a foreign key to Kanall in your own database.
+
+The `AccountRef` never changes after provisioning. It is your stable handle for all operations on that account.
 
 ---
 
@@ -38,13 +50,15 @@ The NUBAN is permanent. Provision it once per entity and reuse it across all fut
 
 ---
 
-## Account references
+## Lifetime
 
-Kanall uses three identifiers for an account — they mean different things:
+By default, every NUBAN is permanent — a dedicated account has no expiry and accepts payments indefinitely. You provision it once per entity and reuse it across all future transactions.
 
-- **`AccountRef`** — Equal to your `externalRef`. Use this in all API calls (`GET /v1/accounts/:accountRef`, etc.)
-- **`BankAccountNumber`** — The NUBAN. Share this with payers. It is not used in API calls.
-- **`ID`** — Kanall's internal UUID. Only needed if you maintain a foreign key to Kanall in your own database.
+You control expiry through two mechanisms:
+- Set `expiresAt` to close the account at a specific time
+- Set `mode: "onetime"` to close the account automatically after the first matching payment
+
+Without either of these, the account stays open forever.
 
 ---
 
@@ -54,7 +68,7 @@ Kanall uses three identifiers for an account — they mean different things:
 
 ```json
 {
-  "accountRef": "distributor-emeka",
+  "accountRef": "bokku-ikeja",
   "balance": "47500.00",
   "currency": "NGN"
 }
@@ -75,8 +89,6 @@ Every virtual account is linked to a `Customer` record. The customer holds KYC t
 ---
 
 ## One-time accounts
-
-By default, every virtual account is **dedicated** — it stays open, accepts unlimited payments, and is reused if you call provision again with the same `externalRef`. This is the right model for most use cases.
 
 For checkout-style scenarios (a food order, a one-off invoice), you can create a **one-time** account by setting `"mode": "onetime"`. One-time accounts close automatically once a matching payment arrives, or at the `expiresAt` deadline — whichever comes first.
 

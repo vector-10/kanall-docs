@@ -6,7 +6,7 @@ sidebar_label: The Ledger
 
 # The Ledger
 
-The ledger is why your balance is never a guess. Every naira that flows through a virtual account is recorded in two entries that cancel each other out — and once written, neither entry can be changed. No update queries. No deletes. If something needs to be corrected, a new reversal entry pair is posted instead.
+The ledger is why your balance is never a guess. Every naira that flows through a virtual account is recorded in two entries that cancel each other out — and once written, neither entry can be changed. No updates. No deletes. If something needs to be corrected, a new reversal entry pair is posted instead.
 
 This means the ledger is always self-auditing: the sum of all entries for any payment group is always zero, and every past state is fully reconstructable.
 
@@ -14,14 +14,14 @@ This means the ledger is always self-auditing: the sum of all entries for any pa
 
 ## Double-entry
 
-Every inbound payment posts exactly **two** `ledger_entries` rows sharing a `transaction_group_id`.
+Every inbound payment posts exactly **two** ledger rows sharing a `transaction_group_id`.
 
-Say Emeka sends ₦5,025 to his StarLine Gas NUBAN. Nomba deducts a ₦25 NIP fee, so ₦5,000 actually lands. Kanall records the net amount (₦5,000) — the fee is stored separately in the `fee` column for reporting, but never counted in the balance:
+Say a supplier sends ₦5,025 to Bokku's Ikeja branch NUBAN. Nomba deducts a ₦25 NIP fee, so ₦5,000 actually lands. Kanall records the net amount (₦5,000) — the fee is stored separately for reporting but never counted in the balance:
 
 | Side | Account type | Direction | Amount | Fee |
 |---|---|---|---|---|
-| Credit | `virtual_account` (Emeka's account) | `credit` | +₦5,000 | ₦25 |
-| Debit | `tenant_settlement` (StarLine Gas) | `debit` | −₦5,000 | ₦25 |
+| Credit | `virtual_account` (Ikeja branch) | `credit` | +₦5,000 | ₦25 |
+| Debit | `tenant_settlement` (Bokku Supermarket) | `debit` | −₦5,000 | ₦25 |
 
 The sum of all `amount` values for any `transaction_group_id` is always **zero**. The `fee` column is informational — it tells you what Nomba charged but does not affect the balance.
 
@@ -29,7 +29,7 @@ The sum of all `amount` values for any `transaction_group_id` is always **zero**
 
 ## Amounts
 
-All amounts are stored as `DECIMAL(20, 8)` — never float. The API surfaces them as decimal strings in naira:
+All amounts are decimal numbers, never floating-point. The API surfaces them as decimal strings in naira:
 
 ```json
 "Amount": "5000.00",

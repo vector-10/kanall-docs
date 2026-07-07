@@ -55,6 +55,12 @@ const config: Config = {
           label: 'Docs',
         },
         {
+          type: 'docSidebar',
+          sidebarId: 'apiSidebar',
+          position: 'left',
+          label: 'API Reference',
+        },
+        {
           href: 'https://github.com/vector-10/kanall',
           label: 'GitHub',
           position: 'right',
