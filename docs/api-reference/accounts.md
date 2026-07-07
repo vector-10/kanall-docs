@@ -21,7 +21,7 @@ Creates a new virtual account and provisions a NUBAN via Nomba.
 | `externalRef` | string | Yes | Your stable identifier for this entity (driver ID, customer ID, order ID, etc.) |
 | `name` | string | Yes | Account holder name as it will appear on Nomba |
 | `bvn` | string | No | BVN for KYC — stored encrypted. Sets the linked customer to KYC Tier 1. |
-| `callbackUrl` | string | No | URL to receive payment notifications for this account |
+| `callbackUrl` | string | No | Per-account webhook URL override — use this for local testing only. In production, set your URL once via `POST /auth/webhook-url` instead. |
 | `expectedAmount` | number | No | Naira amount the payer is expected to send. See note on fees below. |
 | `expiresAt` | string | No | ISO 8601 timestamp after which the account stops accepting payments |
 | `mode` | string | No | `"dedicated"` (default) or `"onetime"` — see [One-time accounts](#one-time-virtual-accounts) |
@@ -34,7 +34,7 @@ curl -X POST https://kanall.onrender.com/v1/accounts \
     "externalRef": "driver-001",
     "name": "Emeka Okafor",
     "bvn": "12345678901",
-    "callbackUrl": "https://app.chiogas.com/webhooks/payment"
+    "callbackUrl": "https://app.starlinegas.ng/webhooks/payment"
   }'
 ```
 
@@ -53,7 +53,7 @@ curl -X POST https://kanall.onrender.com/v1/accounts \
   "Currency": "NGN",
   "Status": "active",
   "Type": "dedicated",
-  "CallbackURL": "https://app.chiogas.com/webhooks/payment",
+  "CallbackURL": "https://app.starlinegas.ng/webhooks/payment",
   "ExpectedAmount": null,
   "ExpiresAt": null,
   "CreatedAt": "2026-07-01T10:30:00Z",

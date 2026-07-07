@@ -6,25 +6,22 @@ sidebar_label: "3. Receive Payments"
 
 # Step 3: Receive Payment Webhooks
 
-When a retailer transfers to their NUBAN, Kanall fires a `POST` to your `callbackUrl` within seconds. Your job: respond `200 OK` fast, then process asynchronously.
+When Emeka transfers to his NUBAN, Kanall fires a `POST` to your `callbackUrl` within seconds. Your job: respond `200 OK` fast, then process asynchronously.
 
 ## Webhook payload
 
 ```json
 {
-  "event": "payment_received",
-  "accountRef": "retailer-00142",
-  "tenantId": "550e8400-...",
-  "transactionRef": "nom_txn_abc123",
+  "eventType": "payment.received",
+  "transactionGroupId": "9c4d1f3b-2e5a-4b7c-8d0e-1f2a3b4c5d6e",
+  "accountRef": "distributor-emeka",
   "amount": "45000.00",
-  "fee": "0.60",
+  "gross_amount": "45050.00",
+  "nomba_fee": "50.00",
   "currency": "NGN",
-  "narration": "Transfer from Mama Ngozi",
-  "senderName": "NGOZI OKONKWO",
-  "senderBank": "Access Bank",
-  "senderAccount": "0987654321",
-  "status": "provisional",
-  "timestamp": "2026-07-01T11:00:00Z"
+  "senderName": "Emeka Okafor",
+  "narration": "Transfer from Emeka Okafor",
+  "status": "provisional"
 }
 ```
 
@@ -32,10 +29,12 @@ Key fields:
 
 | Field | Description |
 |---|---|
-| `accountRef` | Your `externalRef` — use this to find the retailer in your database |
-| `amount` | In naira (Kanall converts from kobo internally) |
-| `status` | `provisional` on first delivery. Becomes `confirmed` after Kanall's convergence sweep verifies with Nomba. |
-| `transactionRef` | Nomba's transaction ID — store this for your own idempotency check |
+| `accountRef` | Your `externalRef` — use this to look up the distributor in your database |
+| `amount` | Net naira credited to the balance (after Nomba's NIP fee) |
+| `gross_amount` | What Emeka actually sent |
+| `nomba_fee` | What Nomba deducted — informational only |
+| `transactionGroupId` | Kanall's internal group ID — use this for idempotency and statement lookups |
+| `status` | Always `"provisional"` on first delivery — see below |
 
 ## Webhook handler (Express)
 
@@ -43,17 +42,14 @@ Key fields:
 // routes/webhooks.js
 const express = require('express')
 const router = express.Router()
-const db = require('../db')
 const queue = require('../queue')  // your async job queue
 
 router.post('/payment', express.json(), async (req, res) => {
-  // Acknowledge Kanall immediately — do not make the webhook wait on DB writes
+  // Acknowledge Kanall immediately — never make the webhook wait on DB writes
   res.status(200).json({ received: true })
 
-  const event = req.body
-
-  // Enqueue for async processing so a slow DB does not cause a retry
-  queue.add('handle-payment', event)
+  // Enqueue for async processing
+  queue.add('handle-payment', req.body)
 })
 
 module.exports = router
@@ -62,99 +58,80 @@ module.exports = router
 ```js
 // workers/handle-payment.js
 async function handlePayment(event) {
-  const { accountRef, transactionRef, amount, status } = event
+  const { accountRef, transactionGroupId, amount, status } = event
 
   // Idempotency — skip if already processed
   const existing = await db.query(
-    'SELECT id FROM payment_events WHERE transaction_ref = $1',
-    [transactionRef]
+    'SELECT id FROM payment_events WHERE group_id = $1',
+    [transactionGroupId]
   )
   if (existing.rows.length > 0) return
 
-  // Find retailer
-  const retailer = await db.query(
-    'SELECT id, name FROM retailers WHERE kanall_ref = $1',
+  // Find the distributor
+  const distributor = await db.query(
+    'SELECT id, name FROM distributors WHERE kanall_ref = $1',
     [accountRef]
   )
-  if (!retailer.rows.length) {
+  if (!distributor.rows.length) {
     console.error(`Unknown accountRef: ${accountRef}`)
     return
   }
 
-  const retailerId = retailer.rows[0].id
+  const distributorId = distributor.rows[0].id
 
   // Record the event
   await db.query(
-    `INSERT INTO payment_events (transaction_ref, retailer_id, amount, status, received_at)
+    `INSERT INTO payment_events (group_id, distributor_id, amount, status, received_at)
      VALUES ($1, $2, $3, $4, now())`,
-    [transactionRef, retailerId, amount, status]
+    [transactionGroupId, distributorId, amount, status]
   )
 
-  if (status === 'confirmed') {
-    // Clear any open invoices for this amount
-    await clearInvoice(retailerId, parseFloat(amount))
-  }
-
-  // provisional — wait for confirmation before clearing invoices
-  // The convergence sweep will send another event with status: 'confirmed'
+  // Do not clear invoices on provisional — wait for confirmed
 }
 ```
 
 ## Handling provisional vs confirmed
 
-Kanall sends the webhook as soon as a payment is received — before the convergence sweep confirms it. This means your first webhook carries `status: "provisional"`.
+`status` is always `"provisional"` at first delivery — Kanall has received the webhook from Nomba but the confirmation pipeline hasn't verified the payment against Nomba's transaction ledger yet. This usually resolves within seconds.
 
-**Do not clear invoices or release credit holds on `provisional` events.** Wait for `confirmed`.
+**Do not clear invoices or release credit holds on `provisional` events.**
+
+When the payment is confirmed, Kanall does not send a second webhook. Instead, query the statement if you need to verify the status of a specific entry, or design your system to act on `provisional` and reconcile against the statement at end-of-day.
 
 ```js
 async function handlePayment(event) {
-  const { status, transactionRef, accountRef, amount } = event
+  const { status, transactionGroupId, accountRef, amount } = event
 
-  // Always record the event
+  // Always record the event for your own audit trail
   await recordEvent(event)
 
   if (status === 'provisional') {
-    // Mark as pending — display "awaiting confirmation" in your UI
+    // Display "awaiting confirmation" in your UI — don't clear the invoice yet
     await db.query(
-      'UPDATE payment_events SET status = $1 WHERE transaction_ref = $2',
-      ['pending', transactionRef]
+      'UPDATE payment_events SET status = $1 WHERE group_id = $2',
+      ['pending_confirmation', transactionGroupId]
     )
     return
-  }
-
-  if (status === 'confirmed') {
-    // Funds are real — clear the invoice
-    await db.query(
-      'UPDATE payment_events SET status = $1 WHERE transaction_ref = $2',
-      ['confirmed', transactionRef]
-    )
-    await clearInvoice(accountRef, parseFloat(amount))
-    return
-  }
-
-  if (status === 'reversed') {
-    // Kanall did not confirm the payment — mark the event as reversed
-    await db.query(
-      'UPDATE payment_events SET status = $1 WHERE transaction_ref = $2',
-      ['reversed', transactionRef]
-    )
   }
 }
 ```
+
+For real-time invoice clearing, query `GET /v1/accounts/:accountRef/statement` a few seconds after the provisional webhook and check whether the entry has moved to `confirmed`.
 
 ## Retry behaviour
 
 If your endpoint returns non-2XX, Kanall retries with exponential backoff:
 
-| Attempt | Delay |
+| Attempt | Delay after previous failure |
 |---|---|
-| 2nd | 2 minutes |
-| 3rd | 5 minutes |
-| 4th | 11 minutes |
-| 5th | 24 minutes |
-| 6th | 53 minutes |
+| 1 (initial) | Immediate |
+| 2 | 2 minutes |
+| 3 | 5 minutes |
+| 4 | 11 minutes |
+| 5 | 24 minutes |
+| 6 | 53 minutes |
 
-After 6 total attempts, the delivery is marked dead letter. Check `GET /v1/webhooks/dead-letters` and reconcile missed events via the statement API.
+After 6 total attempts, the delivery is marked `dead_letter`. Check `GET /v1/webhooks/dead-letters` and reconcile missed events via the statement API.
 
 **Always respond `200 OK` first**, then process. A slow database query should never cause a missed delivery.
 
@@ -165,10 +142,10 @@ ngrok http 3000
 # Forwarding: https://abc123.ngrok.io -> localhost:3000
 ```
 
-Update your retailer's `callbackUrl` to the ngrok URL:
+Update Emeka's `callbackUrl` to the ngrok tunnel:
 
 ```bash
-curl -X PATCH https://kanall.onrender.com/v1/accounts/retailer-00142 \
+curl -X PATCH https://kanall.onrender.com/v1/accounts/distributor-emeka \
   -H "X-API-Key: $KANALL_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "callbackUrl": "https://abc123.ngrok.io/webhooks/payment" }'

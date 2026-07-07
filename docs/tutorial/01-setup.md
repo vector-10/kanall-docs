@@ -1,22 +1,35 @@
 ---
 id: 01-setup
-title: "Step 1: Register and Configure"
+title: "Step 1: Configure Your Environment"
 sidebar_label: "1. Setup"
 ---
 
-# Step 1: Register and Configure
+# Step 1: Configure Your Environment
 
-## Register your tenant
+## Get your API key
 
-Call the registration endpoint once. This is a one-time setup for PrimeLine Distribution as an organisation.
+If you haven't already, sign up at **[kanall.vercel.app](https://kanall.vercel.app)**. After email verification your API key is shown once — copy it.
+
+Prefer the API? Register programmatically:
 
 ```bash
 curl -X POST https://kanall.onrender.com/register \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "PrimeLine Distribution",
-    "email": "ops@primeline.ng",
+    "name": "StarLine Gas",
+    "email": "ops@starlinegas.ng",
     "password": "your-secure-password"
+  }'
+```
+
+Then verify the OTP sent to your email:
+
+```bash
+curl -X POST https://kanall.onrender.com/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "550e8400-e29b-41d4-a716-446655440000",
+    "otp": "847291"
   }'
 ```
 
@@ -24,28 +37,24 @@ curl -X POST https://kanall.onrender.com/register \
 
 ```json
 {
-  "tenantId": "550e8400-e29b-41d4-a716-446655440000",
-  "apiKey": "kan_sk_4a3b2c1d9e8f7a6b5c4d3e2f1a0b...",
+  "apiKey": "ten_sk_4a3b2c1d...",
   "warning": "Store this API key securely — it will not be shown again."
 }
 ```
 
 :::danger Copy your API key now
-Kanall stores only a hash. Once this response is closed, the raw key is gone. If you lose it, you will need to contact support for rotation.
+Kanall stores only a one-way hash. Once this response is closed, the raw key is gone. Rotate it from the dashboard at any time — but you cannot retrieve it.
 :::
 
 ## Configure your environment
 
-Add the API key to your backend's environment variables — never in source code.
+Add the API key to your backend's environment — never in source code.
 
 ```bash
 # .env
-KANALL_API_KEY=kan_sk_4a3b2c1d9e8f7a6b5c4d3e2f1a0b...
+KANALL_API_KEY=ten_sk_4a3b2c1d...
 KANALL_BASE_URL=https://kanall.onrender.com
-WEBHOOK_SECRET=your-webhook-validation-token  # optional internal use
 ```
-
-Load it in your Node.js backend:
 
 ```js
 // config.js
@@ -59,7 +68,7 @@ module.exports = {
 
 ## Create a Kanall API client
 
-A thin helper to avoid repeating auth headers:
+A thin helper to avoid repeating auth headers across your integration:
 
 ```js
 // kanall.js
@@ -87,16 +96,22 @@ async function kanallRequest(method, path, body) {
 module.exports = { kanallRequest }
 ```
 
+## Set your webhook URL
+
+Tell Kanall where to send payment notifications. Do this once — every virtual account you provision will deliver to this endpoint automatically.
+
+```bash
+curl -X POST https://kanall.onrender.com/auth/webhook-url \
+  -H "X-API-Key: $KANALL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://app.starlinegas.ng/webhooks/kanall"}'
+```
+
+For local development, use an ngrok tunnel URL here and update it as needed. Individual accounts can override this URL with their own `callbackUrl` — useful when testing a single account against a local tunnel while keeping production accounts on the main URL.
+
 ## Verify your setup
 
 ```bash
-curl https://kanall.onrender.com/health
-# { "status": "ok" }
-
-curl https://kanall.onrender.com/auth/me \
-  # Note: /auth/me requires dashboard session cookie, not API key
-  # Use /v1/accounts for API key verification:
-
 curl https://kanall.onrender.com/v1/accounts \
   -H "X-API-Key: $KANALL_API_KEY"
 # { "accounts": [], "pagination": { "hasMore": false } }
@@ -106,4 +121,4 @@ An empty accounts list means your key is valid and you are ready for the next st
 
 ---
 
-**Next:** [Provision retailer accounts →](./02-provision-accounts)
+**Next:** [Provision distributor accounts →](./02-provision-accounts)

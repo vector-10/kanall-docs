@@ -6,6 +6,12 @@ sidebar_label: Errors
 
 # Errors
 
+## A note on field casing
+
+Kanall's API response fields use **PascalCase** (`AccountRef`, `BankAccountName`, `Status`). This is Go's default JSON marshalling behaviour. Request bodies use **camelCase** (`externalRef`, `callbackUrl`, `expectedAmount`). The asymmetry is intentional — inputs are camelCase, outputs are PascalCase — and is consistent across every endpoint.
+
+---
+
 ## Error format
 
 All errors return a JSON body with a single `error` field:

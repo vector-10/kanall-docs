@@ -6,11 +6,11 @@ sidebar_label: Idempotency
 
 # Idempotency
 
-Kanall's idempotency design ensures that processing a payment event more than once — due to webhook retries, network failures, or replay — produces exactly the same outcome as processing it once.
+You can replay any webhook at Kanall, at any time, as many times as you want. It will be processed exactly once — and every subsequent delivery will get a silent `200 OK` with nothing written. This is not an accident. It is the most important reliability guarantee in the system.
 
 ## Why it matters
 
-Nomba retries webhook delivery if your endpoint returns a non-2XX response, or if Nomba's own delivery infrastructure experiences a transient failure. This means the same payment event can arrive at Kanall multiple times. Without an idempotency gate, you would record double ledger entries, deliver duplicate webhooks to your endpoint, and end up with a ledger that reports twice the actual amount received.
+Nomba retries webhook delivery if your endpoint returns a non-2XX response, or if Nomba's own delivery infrastructure experiences a transient failure. The same payment event can arrive at Kanall multiple times. Without an idempotency gate, you would record double ledger entries, deliver duplicate webhooks to your endpoint, and end up with a balance that reports twice the actual amount received.
 
 ## The idempotency gate
 

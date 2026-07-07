@@ -6,7 +6,7 @@ sidebar_label: KYC & Identity
 
 # KYC & Identity
 
-Kanall implements a two-layer KYC model: business verification at the **tenant** level, and CBN-mandated tiered identity at the **customer** level.
+Kanall handles two separate KYC questions: *is your company legitimate?* (business KYC, at the tenant level) and *who is this individual paying into the account?* (customer KYC, at the per-customer level). These are tracked independently and do not interfere with each other.
 
 ---
 

@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Bungee Inline';
+  src: url('/fonts/BungeeInline-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Infima overrides — light mode */
 :root {
   --ifm-color-primary: #b89000;
@@ -35,11 +43,20 @@
   --docusaurus-highlighted-code-line-bg: rgba(255, 205, 50, 0.08);
 }
 
-/* Navbar title styling */
+/* Navbar title — Bungee Inline matches the web app */
+.navbar__title {
+  font-family: 'Bungee Inline', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  font-size: 1.25rem;
+}
+
 [data-theme='dark'] .navbar__title {
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: #F5F5F5;
+  color: #FFCD32;
+}
+
+[data-theme='light'] .navbar__title {
+  color: #806300;
 }
 
 /* Table styling in dark mode */

@@ -108,8 +108,8 @@ curl https://kanall.onrender.com/auth/me
 ```json
 {
   "id": "550e8400-...",
-  "name": "Acme Logistics",
-  "email": "ops@acme.ng",
+  "name": "StarLine Gas",
+  "email": "ops@starlinegas.ng",
   "status": "active",
   "apiKeySuffix": "...3c1d",
   "kycStatus": "verified",
@@ -178,6 +178,43 @@ curl -X POST https://kanall.onrender.com/auth/business-kyc \
 ```
 
 See [KYC concepts](../concepts/kyc) for the full two-layer KYC model (business + customer tiers).
+
+---
+
+### Configure tenant webhook URL
+
+```
+POST /auth/webhook-url
+```
+
+Sets a single webhook URL that receives payment events for **all** your virtual accounts. This is the standard setup — configure it once and every account you provision will deliver to this endpoint automatically.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `url` | string | Yes | Your backend webhook endpoint URL |
+
+```bash
+curl -X POST https://kanall.onrender.com/auth/webhook-url \
+  -H "X-API-Key: ten_sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://app.starlinegas.ng/webhooks/kanall"}'
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "webhookUrl": "https://app.starlinegas.ng/webhooks/kanall"
+}
+```
+
+Once set, you do not need to pass `callbackUrl` when provisioning accounts. All deliveries go to this URL. The current configured URL is returned in `GET /auth/me` under `webhookUrl`.
+
+:::tip Per-account override
+If a specific virtual account has its own `callbackUrl` set, that takes precedence over the tenant-level URL for that account only. Use this for testing individual accounts against a local tunnel (ngrok) without affecting your production endpoint.
+:::
 
 ---
 

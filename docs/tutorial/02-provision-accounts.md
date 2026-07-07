@@ -1,12 +1,12 @@
 ---
 id: 02-provision-accounts
-title: "Step 2: Provision Retailer Accounts"
+title: "Step 2: Provision Distributor Accounts"
 sidebar_label: "2. Provision Accounts"
 ---
 
-# Step 2: Provision Retailer Accounts
+# Step 2: Provision Distributor Accounts
 
-Each retailer in PrimeLine's customer database gets their own dedicated NUBAN. You provision it once — the NUBAN is permanent and reusable across all future invoices.
+Each distributor in StarLine's network gets their own dedicated NUBAN. You provision it once — the NUBAN is permanent and reused across all future invoices for that distributor.
 
 ## Provision a single account
 
@@ -15,63 +15,63 @@ curl -X POST https://kanall.onrender.com/v1/accounts \
   -H "X-API-Key: $KANALL_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "externalRef": "retailer-00142",
-    "name": "Mama Ngozi Provisions",
-    "callbackUrl": "https://app.primeline.ng/webhooks/payment"
+    "externalRef": "distributor-emeka",
+    "name": "Emeka Okafor"
   }'
 ```
 
 | Field | Value | Why |
 |---|---|---|
-| `externalRef` | `retailer-00142` | Your internal retailer ID — this is how Kanall links the payment back to your record |
-| `name` | `Mama Ngozi Provisions` | Displayed to the retailer when they look up the account number |
-| `callbackUrl` | Your webhook URL | Where Kanall sends the payment event when funds arrive |
+| `externalRef` | `distributor-emeka` | Your internal distributor ID — this is how Kanall links the payment back to your record |
+| `name` | `Emeka Okafor` | Displayed when Emeka looks up the account number at his bank |
+
+Payment notifications go to the tenant webhook URL you configured in Step 1. No `callbackUrl` needed per account.
 
 **Response:**
 
 ```json
 {
-  "ID": "7f3b9e2a-4d1c-4e8b-9f2a-3c5d7e8b1a2c",
-  "AccountRef": "retailer-00142",
+  "AccountRef": "distributor-emeka",
   "BankAccountNumber": "0123456789",
-  "BankAccountName": "Mama Ngozi Provisions",
+  "BankAccountName": "Emeka Okafor",
   "BankName": "Nomba MFB",
   "Currency": "NGN",
   "Status": "active",
-  "CallbackURL": "https://app.primeline.ng/webhooks/payment",
+  "CallbackURL": "https://app.starlinegas.ng/webhooks/payment",
   "CreatedAt": "2026-07-01T10:30:00Z"
 }
 ```
 
-The `BankAccountNumber` (`0123456789`) is the NUBAN. Print it on the retailer's invoice. When Mama Ngozi transfers to that number, Kanall knows it's her payment.
+`BankAccountNumber` is the NUBAN. Print it on Emeka's invoice. When he transfers to that number, Kanall knows it's his payment — no reference matching required.
 
 ## Provision accounts in bulk
 
-At onboarding, provision accounts for your full retailer list. Kanall enforces a rate limit of 20 provisioning requests per minute per API key — batch accordingly.
+At onboarding, provision accounts for your full distributor list. Kanall enforces a rate limit of 20 provisioning requests per minute per API key — batch accordingly.
 
 ```js
-// provision-retailers.js
+// provision-distributors.js
 const { kanallRequest } = require('./kanall')
 
-const retailers = await db.query('SELECT id, name FROM retailers WHERE kanall_ref IS NULL')
+const distributors = await db.query(
+  'SELECT id, name FROM distributors WHERE kanall_ref IS NULL'
+)
 
-for (const retailer of retailers.rows) {
+for (const distributor of distributors.rows) {
   try {
     const account = await kanallRequest('POST', '/v1/accounts', {
-      externalRef: `retailer-${retailer.id}`,
-      name: retailer.name,
-      callbackUrl: process.env.PAYMENT_WEBHOOK_URL,
+      externalRef: `distributor-${distributor.id}`,
+      name: distributor.name,
     })
 
     // Store the NUBAN in your database
     await db.query(
-      'UPDATE retailers SET nuban = $1, kanall_ref = $2 WHERE id = $3',
-      [account.BankAccountNumber, account.AccountRef, retailer.id]
+      'UPDATE distributors SET nuban = $1, kanall_ref = $2 WHERE id = $3',
+      [account.BankAccountNumber, account.AccountRef, distributor.id]
     )
 
-    console.log(`Provisioned ${retailer.name}: ${account.BankAccountNumber}`)
+    console.log(`Provisioned ${distributor.name}: ${account.BankAccountNumber}`)
   } catch (err) {
-    console.error(`Failed for ${retailer.name}: ${err.message}`)
+    console.error(`Failed for ${distributor.name}: ${err.message}`)
   }
 
   // Respect rate limit
@@ -81,36 +81,34 @@ for (const retailer of retailers.rows) {
 
 ## Store what you need
 
-After provisioning, your `retailers` table should hold:
+After provisioning, your `distributors` table should hold:
 
 | Column | Value | Purpose |
 |---|---|---|
-| `nuban` | `0123456789` | Print on invoices, share with retailer |
-| `kanall_ref` | `retailer-00142` | Used to look up ledger via `GET /v1/accounts/retailer-00142/statement` |
-
-You do not need to store Kanall's internal `ID` (UUID) unless you need a stable foreign key in your own schema.
+| `nuban` | `0123456789` | Print on invoices, share with the distributor |
+| `kanall_ref` | `distributor-emeka` | Used to look up ledger via `GET /v1/accounts/distributor-emeka/statement` |
 
 ## Print the NUBAN on invoices
 
-Add the retailer's NUBAN to every invoice:
+Add the distributor's NUBAN to every invoice you send:
 
 ```
-═══════════════════════════════════════
-PrimeLine Distribution — Invoice
-INV-2026-004 │ Due: 2026-07-05
-Customer: Mama Ngozi Provisions
-Amount: ₦45,000.00
+═══════════════════════════════════════════
+StarLine Gas — Invoice
+INV-2026-007 │ Due: 2026-07-10
+Distributor: Emeka Okafor (Route 7 — Ikeja)
+Amount due: ₦45,000.00
 
 PAY TO:
 Bank:    Nomba MFB
 Account: 0123456789
-Name:    Mama Ngozi Provisions
+Name:    Emeka Okafor
 
 Transfer exactly ₦45,000.00 to this account.
-═══════════════════════════════════════
+═══════════════════════════════════════════
 ```
 
-When the retailer transfers to that NUBAN, Kanall receives the event and fires your webhook within seconds.
+When Emeka transfers to that NUBAN, Kanall receives the event and fires your webhook within seconds.
 
 ---
 

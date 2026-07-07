@@ -6,45 +6,40 @@ sidebar_label: Quick Start
 
 # Quick Start
 
-In under 5 minutes you will have a registered tenant, a provisioned virtual account with a real NUBAN, and a confirmed payment in the ledger.
+In under 5 minutes you will have an API key, a provisioned virtual account with a real NUBAN, and a payment in the ledger.
 
-## Prerequisites
-
-- `curl` or any HTTP client
-- A running Kanall server (local or hosted)
-
-Set your base URL:
-
-```bash
-export KANALL_URL=https://kanall.onrender.com
-```
+We'll follow **StarLine Gas** — a gas distribution company that needs each of its distributors to have a dedicated collection account.
 
 ---
 
-## Step 1 — Register your organisation
+## Step 1 — Get your API key
+
+### Option A: Dashboard (recommended)
+
+1. Go to **[kanall.vercel.app](https://kanall.vercel.app)** and sign up
+2. Verify the one-time code sent to your email
+3. Your API key is shown immediately after verification — copy and store it now
+
+:::warning
+Your API key is shown **once**. Kanall stores only a one-way hash — the raw key is never retrievable after this screen. If you lose it, rotate it from the dashboard at any time.
+:::
+
+### Option B: API
 
 ```bash
-curl -X POST $KANALL_URL/register \
+curl -X POST https://kanall.onrender.com/register \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Acme Logistics",
-    "email": "ops@acme.ng",
+    "name": "StarLine Gas",
+    "email": "ops@starlinegas.ng",
     "password": "your-secure-password"
   }'
 ```
 
-**Response:**
-
-```json
-{
-  "tenantId": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-Kanall sends a one-time code to your email. Verify it to receive your API key:
+Kanall sends a one-time code to your email. Verify it:
 
 ```bash
-curl -X POST $KANALL_URL/auth/verify-email \
+curl -X POST https://kanall.onrender.com/auth/verify-email \
   -H "Content-Type: application/json" \
   -d '{
     "tenantId": "550e8400-e29b-41d4-a716-446655440000",
@@ -61,11 +56,9 @@ curl -X POST $KANALL_URL/auth/verify-email \
 }
 ```
 
-:::warning
-Save your `apiKey` immediately. Kanall stores only a SHA-256 hash — the raw key is never retrievable after this point. If you lose it, rotate via the dashboard.
-:::
+---
 
-Set it for the remaining steps:
+Either way, set your key for the steps below:
 
 ```bash
 export API_KEY=ten_sk_4a3b2c1d...
@@ -73,61 +66,78 @@ export API_KEY=ten_sk_4a3b2c1d...
 
 ---
 
-## Step 2 — Provision a virtual account
+## Step 1b — Set your webhook URL (do this once)
+
+Before provisioning any accounts, tell Kanall where to send payment notifications. You only do this once — every account you create will deliver to this URL automatically.
 
 ```bash
-curl -X POST $KANALL_URL/v1/accounts \
+curl -X POST https://kanall.onrender.com/auth/webhook-url \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://app.starlinegas.ng/webhooks/kanall"}'
+```
+
+---
+
+## Step 2 — Provision a virtual account
+
+StarLine Gas has a distributor named **Emeka Okafor** on Route 7. He needs a dedicated account so customer payments land with his name attached and can be tracked independently.
+
+```bash
+curl -X POST https://kanall.onrender.com/v1/accounts \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "externalRef": "driver-001",
+    "externalRef": "distributor-emeka",
     "name": "Emeka Okafor"
   }'
 ```
 
-`externalRef` is your own stable identifier — your internal customer ID, driver ID, or any unique reference.
+`externalRef` is your stable identifier — your internal distributor ID, customer ID, or any unique reference. Kanall uses it as the account's lookup key.
 
 **Response:**
 
 ```json
 {
-  "ID": "7f3b9e2a-...",
-  "TenantID": "550e8400-...",
-  "AccountRef": "driver-001",
-  "Provider": "nomba",
+  "AccountRef": "distributor-emeka",
   "BankAccountNumber": "0123456789",
   "BankAccountName": "Emeka Okafor",
   "BankName": "Nomba MFB",
-  "Currency": "NGN",
-  "Status": "active",
-  "CallbackURL": null,
-  "ExpectedAmount": null,
-  "CreatedAt": "2026-07-01T10:30:00Z",
-  "UpdatedAt": "2026-07-01T10:30:00Z"
+  "Status": "active"
 }
 ```
 
-The `BankAccountNumber` is the NUBAN. Share it with whoever is paying this entity.
+`BankAccountNumber` is the NUBAN. Share it with whoever is paying Emeka — they transfer to this number at any Nigerian bank.
 
 ---
 
 ## Step 3 — Receive a payment
 
-Give `BankAccountNumber` (`0123456789`) to your customer. When they transfer to that account number at any bank, Nomba fires a webhook to Kanall.
+A customer sends ₦5,025 to `0123456789`. Nomba fires a webhook to Kanall.
 
-Kanall:
-1. Verifies the Nomba signature
-2. Checks the idempotency gate (`requestId` not yet seen)
-3. Posts a `provisional` credit + debit pair to the ledger
-4. Fires a webhook to your `callbackUrl` (if set)
-5. The convergence sweep later promotes `provisional` → `confirmed`
+Kanall verifies the signature, checks idempotency, and posts a `provisional` ledger entry. Moments later the confirmation pipeline promotes it to `confirmed`. Your `callbackUrl` receives a payment event:
+
+```json
+{
+  "eventType": "payment.received",
+  "accountRef": "distributor-emeka",
+  "amount": "5000.00",
+  "gross_amount": "5025.00",
+  "nomba_fee": "25.00",
+  "currency": "NGN",
+  "senderName": "Chidi Emmanuel",
+  "status": "provisional"
+}
+```
+
+`amount` is the net after Nomba's ₦25 NIP fee. `status` will become `confirmed` in seconds — you can poll the statement or wait for the confirmation if your flow requires it.
 
 ---
 
 ## Step 4 — Check the ledger
 
 ```bash
-curl $KANALL_URL/v1/accounts/driver-001/statement \
+curl https://kanall.onrender.com/v1/accounts/distributor-emeka/statement \
   -H "X-API-Key: $API_KEY"
 ```
 
@@ -135,55 +145,57 @@ curl $KANALL_URL/v1/accounts/driver-001/statement \
 
 ```json
 {
-  "virtualAccount": { "AccountRef": "driver-001", "Status": "active" },
   "lines": [
     {
       "entry": {
         "Direction": "credit",
-        "Amount": "4975.00",
+        "Amount": "5000.00",
         "Fee": "25.00",
-        "Currency": "NGN",
         "Status": "confirmed",
-        "Narration": "Transfer from Chidi Emmanuel",
-        "NombaTxnRef": "nom_txn_abc123",
-        "CreatedAt": "2026-07-01T11:00:00Z"
+        "Narration": "Transfer from Chidi Emmanuel"
       },
-      "runningBalance": "4975.00"
+      "runningBalance": "5000.00"
     }
   ],
-  "openingBalance": "0.00",
-  "totalCredits": "4975.00",
-  "totalDebits": "0.00",
-  "closingBalance": "4975.00",
-  "pagination": { "limit": 50, "nextCursor": null, "hasMore": false }
+  "closingBalance": "5000.00"
 }
 ```
 
-`Amount` is the net naira credited to your balance after Nomba's ₦25 NIP fee. `Fee` shows what Nomba deducted — it's informational and not included in the balance calculation.
+Emeka's balance is ₦5,000. The ₦25 fee is recorded but excluded from the balance — it went to Nomba.
 
 ---
 
-## Step 5 — Set up your webhook endpoint (optional but recommended)
+## Step 5 — Settle (optional)
 
-When provisioning, pass `callbackUrl`:
+At the end of the week, StarLine Gas pays Emeka his collected balance:
 
 ```bash
-curl -X POST $KANALL_URL/v1/accounts \
+curl -X POST https://kanall.onrender.com/v1/accounts/distributor-emeka/settle \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "externalRef": "driver-002",
-    "name": "Fatima Yusuf",
-    "callbackUrl": "https://your-backend.com/webhooks/payment"
+    "amount": "5000.00",
+    "bankCode": "044",
+    "accountNumber": "0987654321",
+    "narration": "Emeka payout - week 28"
   }'
 ```
 
-Kanall will `POST` to that URL on every confirmed payment. See [Webhooks](./concepts/webhooks) for the payload shape and retry behaviour.
+**Response:** `202 Accepted`
+
+```json
+{
+  "merchantTxRef": "knl_1751500000_abc12345",
+  "status": "pending"
+}
+```
+
+The transfer is queued. Track it with `GET /v1/transfers/knl_1751500000_abc12345`.
 
 ---
 
-**What's next:**
+## What's next
 
-- [Core Concepts](./concepts/tenants) — understand tenants, virtual accounts, the ledger, and webhooks in depth
-- [API Reference](./api-reference/authentication) — full endpoint documentation
-- [Tutorial: Logistics Integration](./tutorial/) — end-to-end example with a real use case
+- [Tutorial: StarLine Gas end-to-end](./tutorial/) — the full integration story: multiple distributors, one-time collection accounts, fee calculation, and settlement
+- [Core Concepts](./concepts/tenants) — how the ledger, confirmation pipeline, and webhooks actually work
+- [API Reference](./api-reference/authentication) — every endpoint, field, and error response
