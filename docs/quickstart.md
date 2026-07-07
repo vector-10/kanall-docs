@@ -10,6 +10,10 @@ In under 5 minutes you will have an API key, a provisioned virtual account with 
 
 We'll follow **StarLine Gas** — a gas distribution company that needs each of its distributors to have a dedicated collection account.
 
+:::note What is a tenant?
+In Kanall, your company is a **tenant**. Your API key identifies your tenant — every virtual account, ledger entry, and webhook delivery you create is permanently scoped to it. You'll see `TenantID` in API responses; that's you.
+:::
+
 ---
 
 ## Step 1 — Get your API key

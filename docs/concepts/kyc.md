@@ -37,11 +37,11 @@ Every customer in your system holds a `KYCTier` (1, 2, or 3) as mandated by the 
 
 Tier 1 is the default for customers who provide a BVN at account provision time.
 
-### Tier 2 — BVN + NIN (with document)
+### Tier 2 — BVN + NIN
 
-- **Requirement:** BVN on file **and** National Identification Number (NIN) + document image
+- **Requirement:** BVN on file **and** National Identification Number (NIN)
 - **Initiated via** `POST /v1/customers/:id/kyc` by your backend
-- **Tier is not bumped immediately** — submission sets `kyc_status = "pending_review"` for operator review
+- **Verified automatically** via Mono Identity — if verification succeeds, tier bumps to 2 immediately; if the service is unavailable, submission falls back to `pending_review` for operator approval
 - **Daily transaction limit:** ₦200,000
 - **Maximum balance:** ₦500,000
 
@@ -68,13 +68,13 @@ none → pending_review → approved   (KYCTier bumps to 2)
 | Status | Meaning |
 |---|---|
 | `none` | No NIN submitted yet. Tier 2 upgrade available. |
-| `pending_review` | NIN and document submitted. Awaiting operator review. Resubmission blocked. |
-| `approved` | Operator approved. `KYCTier` is now `2`. |
-| `rejected` | Operator rejected. Customer may resubmit with corrected documents. |
+| `pending_review` | NIN submitted. Mono verification was unavailable — awaiting operator approval. Resubmission blocked. |
+| `approved` | NIN verified (auto or operator). `KYCTier` is now `2`. |
+| `rejected` | Operator rejected. Customer may resubmit with a corrected NIN. |
 
-### Why a review step instead of instant verification?
+### Verification flow
 
-The major NIN verification APIs (Dojah, Smile Identity, VerifyMe) require business onboarding and are not available on-demand. Rather than skip NIN entirely or integrate an unreliable shortcut, Kanall collects the NIN and document, encrypts both at rest, and routes the decision to an operator. This is architecturally honest — the data is collected securely, the tier gates on a real approval decision, and the pipeline is wired to accept a verification provider the moment one is available.
+NIN submissions are verified in real time via **Mono Identity** (`POST /v3/lookup/nin`). When verification succeeds, the tier is promoted to 2 in the same response — no operator step required. If Mono is unavailable or the account lacks access, the submission is stored encrypted and set to `pending_review` for operator approval via the dashboard. The fallback path ensures no submission is silently lost.
 
 ---
 
@@ -96,6 +96,7 @@ Kanall records and reports the tier. The actual transaction limit enforcement ha
 
 ## Security
 
-- BVN, NIN, and NIN document images are stored encrypted with AES-256-GCM. The encryption key is set via the `ENCRYPTION_KEY` environment variable — never hardcoded.
+- BVN and NIN values are stored encrypted with AES-256-GCM. The encryption key is set via the `ENCRYPTION_KEY` environment variable — never hardcoded.
 - Only the last 4 digits (`BVNLast4`, `NINLast4`) are returned in API responses.
-- The raw NIN value and document cannot be recovered from the API under any circumstances.
+- The raw NIN value cannot be recovered from the API under any circumstances.
+- A `verification_ref` from Mono is stored on the customer record when auto-verification succeeds, providing an audit trail back to the identity check.

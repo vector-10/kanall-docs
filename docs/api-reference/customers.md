@@ -121,37 +121,85 @@ curl -X PATCH https://kanall.onrender.com/v1/customers/a1b2c3d4-... \
 
 ---
 
+## Get the linked virtual account
+
+```
+GET /v1/customers/:id/account
+```
+
+Returns the virtual account (NUBAN) linked to this customer. Every customer has exactly one dedicated account once provisioned.
+
+```bash
+curl https://kanall.onrender.com/v1/customers/a1b2c3d4-.../account \
+  -H "X-API-Key: ten_sk_..."
+```
+
+**Response:** `200 OK` — Account object
+
+```json
+{
+  "ID": "7f3e2d1c-...",
+  "TenantID": "550e8400-...",
+  "CustomerID": "a1b2c3d4-...",
+  "AccountRef": "driver-001",
+  "Provider": "nomba",
+  "BankAccountNumber": "2572780397",
+  "BankAccountName": "Emeka Okafor",
+  "BankName": "Nomba",
+  "Currency": "NGN",
+  "Status": "active",
+  "CreatedAt": "2026-07-01T10:30:00Z",
+  "UpdatedAt": "2026-07-01T10:30:00Z"
+}
+```
+
+Use the `AccountRef` from this response to call `/v1/accounts/:ref/statement` or `/v1/accounts/:ref/balance`.
+
+**Error responses:**
+
+| Status | Error | Reason |
+|---|---|---|
+| `404` | `no account linked to this customer` | Customer exists but has no provisioned account yet |
+
+---
+
 ## Submit KYC upgrade (Tier 1 → Tier 2)
 
 ```
 POST /v1/customers/:id/kyc
 ```
 
-Submits the customer's NIN and a document image for Tier 2 review. This does **not** immediately upgrade the tier — it sets `KYCStatus` to `pending_review` and queues the submission for operator approval.
+Submits the customer's NIN for Tier 2 verification. Kanall verifies the NIN against Mono Identity in real time. If verification succeeds, `KYCTier` is immediately promoted to `2`. If the verification service is unavailable, the submission falls back to `pending_review` for operator approval.
 
 **Requirements:**
 - Customer must currently be at Tier 1 with `KYCStatus` of `none` or `rejected`
 - NIN must be exactly 11 digits
-- Document must be a base64-encoded image or PDF
 
 **Request body:**
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `nin` | string | Yes | Customer's 11-digit National Identification Number |
-| `nin_document` | string | Yes | Base64-encoded NIN slip or government-issued ID image |
 
 ```bash
 curl -X POST https://kanall.onrender.com/v1/customers/a1b2c3d4-.../kyc \
   -H "X-API-Key: ten_sk_..." \
   -H "Content-Type: application/json" \
-  -d '{
-    "nin": "12345678901",
-    "nin_document": "<base64-encoded image>"
-  }'
+  -d '{"nin": "12345678901"}'
 ```
 
-**Response:** `200 OK` — Customer object with `KYCStatus: "pending_review"`
+**Response (auto-approved):** `200 OK`
+
+```json
+{
+  "ID": "a1b2c3d4-...",
+  "KYCTier": 2,
+  "KYCStatus": "approved",
+  "NINLast4": "8901"
+}
+```
+
+**Response (pending review):** `200 OK`
 
 ```json
 {
@@ -163,16 +211,16 @@ curl -X POST https://kanall.onrender.com/v1/customers/a1b2c3d4-.../kyc \
 ```
 
 :::note
-The tier is **not bumped to 2 at this point**. The customer remains at Tier 1 until an operator approves the submission via the admin endpoints below.
+When `KYCStatus` is `pending_review`, an operator can approve or reject via the admin endpoints below. Tier is only bumped when `KYCStatus` reaches `approved`.
 :::
 
 **Error responses:**
 
 | Status | Error | Reason |
 |---|---|---|
-| `400` | `NIN must be exactly 11 digits` | Invalid NIN format |
-| `400` | `nin_document is required` | Document not included in request |
-| `409` | `KYC already pending review` | A submission is already awaiting approval |
+| `400` | `nin must be exactly 11 digits` | Invalid NIN format |
+| `400` | `kyc submission already pending review` | A submission is already awaiting approval |
+| `400` | `customer is already at tier 2 or above` | Upgrade already complete |
 
 ---
 
