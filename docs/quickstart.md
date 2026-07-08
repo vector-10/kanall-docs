@@ -20,7 +20,7 @@ In Kanall, your company is a **tenant**. Your API key identifies your tenant —
 
 ### Option A: Dashboard (recommended)
 
-1. Go to **[kanall.vercel.app](https://kanall.vercel.app)** and sign up
+1. Go to **[www.kanall-app.online](https://www.kanall-app.online)** and sign up
 2. Verify the one-time code sent to your email
 3. Your API key is shown immediately after verification — copy and store it now
 

@@ -9,7 +9,7 @@ slug: /
 
 Kanall gives every entity in your platform — a driver, a merchant, a student, a supplier — a dedicated Nigerian bank account (NUBAN), and records every naira that flows through it in a double-entry ledger that never lies.
 
-**[Sign up at kanall.vercel.app →](https://kanall.vercel.app)**
+**[Sign up at www.kanall-app.online →](https://www.kanall-app.online)**
 
 ---
 

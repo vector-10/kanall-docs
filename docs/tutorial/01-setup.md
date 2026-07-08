@@ -8,7 +8,7 @@ sidebar_label: "1. Setup"
 
 ## Get your API key
 
-If you haven't already, sign up at **[kanall.vercel.app](https://kanall.vercel.app)**. After email verification your API key is shown once — copy it.
+If you haven't already, sign up at **[www.kanall-app.online](https://www.kanall-app.online)**. After email verification your API key is shown once — copy it.
 
 Prefer the API? Register programmatically:
 

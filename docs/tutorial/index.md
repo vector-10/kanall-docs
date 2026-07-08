@@ -32,7 +32,7 @@ A backend integration that:
 
 ## Prerequisites
 
-- A registered Kanall tenant with an API key — [sign up at kanall.vercel.app](https://kanall.vercel.app) or see the [Quick Start](../quickstart)
+- A registered Kanall tenant with an API key — [sign up at www.kanall-app.online](https://www.kanall-app.online) or see the [Quick Start](../quickstart)
 - A backend capable of receiving HTTP POST requests (Node.js/Express examples shown)
 - A publicly reachable webhook URL — use [ngrok](https://ngrok.com) for local testing
 

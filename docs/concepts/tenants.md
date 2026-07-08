@@ -28,7 +28,7 @@ Every SQL query in Kanall includes a `WHERE tenant_id = $1` clause. There is no 
 
 ## Registration
 
-Sign up at **[kanall.vercel.app](https://kanall.vercel.app)** (recommended), or via the API:
+Sign up at **[www.kanall-app.online](https://www.kanall-app.online)** (recommended), or via the API:
 
 ```json
 {
@@ -56,7 +56,7 @@ This is the only method your backend should use. Store it in environment variabl
 
 ### Dashboard (browser → Kanall)
 
-The Kanall dashboard at [kanall.vercel.app](https://kanall.vercel.app) uses email and password login, which sets a server-side `httpOnly` session cookie (`kanall_session`). Dashboard sessions and API key sessions are completely separate.
+The Kanall dashboard at [www.kanall-app.online](https://www.kanall-app.online) uses email and password login, which sets a server-side `httpOnly` session cookie (`kanall_session`). Dashboard sessions and API key sessions are completely separate.
 
 ---
 
