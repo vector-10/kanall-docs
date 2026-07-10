@@ -23,12 +23,12 @@ In Kanall, your company is a **tenant**. Your API key identifies your tenant —
 
 Before you begin, confirm your environment meets these requirements:
 
-| Requirement | Minimum version |
-|---|---|
-| Node.js | 18+ |
-| Python | 3.9+ |
-| Go | 1.21+ |
-| Java | 17+ |
+| Requirement | Minimum version | Why |
+|---|---|---|
+| Node.js | 18+ | Native `fetch` API — no extra dependency needed |
+| Python | 3.8+ | f-strings and `requests` library support |
+| Go | 1.18+ | Stable module system and generics |
+| Java | 17+ | `HexFormat` class (for HMAC hex encoding) and text blocks |
 
 **Other requirements:**
 

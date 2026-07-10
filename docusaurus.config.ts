@@ -55,7 +55,7 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://github.com/vector-10/the-tenet',
+          href: 'https://github.com/vector-10/kanall',
           label: 'GitHub',
           position: 'right',
         },
