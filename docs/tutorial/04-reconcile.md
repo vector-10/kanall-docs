@@ -453,10 +453,7 @@ public Map<String, Object> generateRouteReport(String agentId) throws Exception 
 
 ## Handling long account histories (pagination)
 
-For distributors with many transactions, the statement is cursor-paginated:
-
-<Tabs>
-<TabItem value="js" label="JavaScript">
+For distributors with many transactions, the statement is cursor-paginated. Loop until `pagination.hasMore` is false, passing `?after={nextCursor}` on each subsequent request:
 
 ```js
 async function getAllEntries(accountRef) {
@@ -474,98 +471,7 @@ async function getAllEntries(accountRef) {
 }
 ```
 
-</TabItem>
-<TabItem value="python" label="Python">
-
-```python
-def get_all_entries(account_ref: str) -> list:
-    entries = []
-    cursor = None
-
-    while True:
-        path = f'/v1/accounts/{account_ref}/statement'
-        if cursor:
-            path += f'?after={cursor}'
-
-        page = kanall('GET', path)
-        entries.extend(page['lines'])
-
-        pagination = page.get('pagination', {})
-        if pagination.get('hasMore'):
-            cursor = pagination['nextCursor']
-        else:
-            break
-
-    return entries
-```
-
-</TabItem>
-<TabItem value="go" label="Go">
-
-```go
-func getAllEntries(ctx context.Context, accountRef string) ([]StatementLine, error) {
-    var all []StatementLine
-    cursor := ""
-
-    for {
-        path := "/v1/accounts/" + accountRef + "/statement"
-        if cursor != "" {
-            path += "?after=" + cursor
-        }
-
-        var page struct {
-            Lines      []StatementLine `json:"lines"`
-            Pagination struct {
-                HasMore    bool   `json:"hasMore"`
-                NextCursor string `json:"nextCursor"`
-            } `json:"pagination"`
-        }
-        if err := kanall.Request(ctx, "GET", path, nil, &page); err != nil {
-            return nil, err
-        }
-
-        all = append(all, page.Lines...)
-
-        if !page.Pagination.HasMore {
-            break
-        }
-        cursor = page.Pagination.NextCursor
-    }
-
-    return all, nil
-}
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-public List<JsonObject> getAllEntries(String accountRef) throws Exception {
-    List<JsonObject> all = new ArrayList<>();
-    String cursor = null;
-
-    while (true) {
-        String path = "/v1/accounts/" + accountRef + "/statement";
-        if (cursor != null) path += "?after=" + cursor;
-
-        String json = kanall.request("GET", path, null);
-        JsonObject page = JsonParser.parseString(json).getAsJsonObject();
-
-        for (JsonElement el : page.getAsJsonArray("lines")) {
-            all.add(el.getAsJsonObject());
-        }
-
-        JsonObject pagination = page.getAsJsonObject("pagination");
-        if (pagination == null || !pagination.get("hasMore").getAsBoolean()) break;
-        cursor = pagination.get("nextCursor").getAsString();
-    }
-
-    return all;
-}
-```
-
-</TabItem>
-</Tabs>
+The same cursor loop applies in Python, Go, and Java — replace the `kanall()` call with your language's client.
 
 ---
 

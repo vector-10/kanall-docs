@@ -286,152 +286,18 @@ public class KanallSignatureVerifier {
 
 ---
 
-## Full webhook handler with verification
+## Wiring it into your handler
 
-<Tabs>
-<TabItem value="js" label="JavaScript">
+Once you have the verification function, call it at the top of your webhook endpoint before doing anything else. Full handler examples in all languages are in [Tutorial Step 3 — Receive Payment Webhooks](../tutorial/03-receive-payments).
 
-```js
-// routes/webhooks.js — Express
-const express = require('express')
-const router  = express.Router()
-const { verifyKanallSignature } = require('../kanall-verify')
+The one rule that catches most developers: read the **raw byte body before your framework parses it**. Parsing changes whitespace and breaks the HMAC.
 
-const SECRET = process.env.KANALL_WEBHOOK_SECRET
-
-// IMPORTANT: use express.raw() — not express.json() — so we receive the raw body
-router.post('/kanall', express.raw({ type: 'application/json' }), (req, res) => {
-  const sig = req.headers['x-kanall-signature']
-
-  if (!sig || !verifyKanallSignature(req.body, sig, SECRET)) {
-    return res.status(401).json({ error: 'invalid signature' })
-  }
-
-  // Acknowledge immediately before doing any processing
-  res.status(200).json({ received: true })
-
-  // Parse after verification
-  const event = JSON.parse(req.body)
-  processPaymentAsync(event)
-})
-
-module.exports = router
-```
-
-</TabItem>
-<TabItem value="python" label="Python">
-
-```python
-# views.py — Django
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-import json, os
-from kanall_verify import verify_kanall_signature
-
-SECRET = os.environ['KANALL_WEBHOOK_SECRET']
-
-@csrf_exempt
-def kanall_webhook(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'method not allowed'}, status=405)
-
-    # request.body gives raw bytes — must use this before any JSON parsing
-    sig = request.headers.get('X-Kanall-Signature', '')
-
-    if not verify_kanall_signature(request.body, sig, SECRET):
-        return JsonResponse({'error': 'invalid signature'}, status=401)
-
-    event = json.loads(request.body)
-    process_payment_async(event)
-
-    return JsonResponse({'received': True})
-```
-
-</TabItem>
-<TabItem value="go" label="Go">
-
-```go
-// handler/webhook.go
-package handler
-
-import (
-    "encoding/json"
-    "io"
-    "net/http"
-    "os"
-
-    "github.com/yourorg/yourapp/kanallverify"
-)
-
-var webhookSecret = os.Getenv("KANALL_WEBHOOK_SECRET")
-
-func HandleKanallWebhook(w http.ResponseWriter, r *http.Request) {
-    // Read raw body before any parsing
-    rawBody, err := io.ReadAll(r.Body)
-    if err != nil {
-        http.Error(w, "bad request", http.StatusBadRequest)
-        return
-    }
-
-    sig := r.Header.Get("X-Kanall-Signature")
-    if !kanallverify.VerifySignature(rawBody, sig, webhookSecret) {
-        http.Error(w, `{"error":"invalid signature"}`, http.StatusUnauthorized)
-        return
-    }
-
-    // Acknowledge immediately
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusOK)
-    w.Write([]byte(`{"received":true}`))
-
-    // Process asynchronously after responding
-    var event map[string]any
-    if err := json.Unmarshal(rawBody, &event); err != nil {
-        return
-    }
-    go processPayment(event)
-}
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// WebhookController.java — Spring Boot
-import org.springframework.web.bind.annotation.*;
-import org.springframework.http.*;
-
-@RestController
-public class WebhookController {
-
-    private final String secret = System.getenv("KANALL_WEBHOOK_SECRET");
-
-    // @RequestBody byte[] gives us the raw body before Spring parses it
-    @PostMapping("/webhooks/kanall")
-    public ResponseEntity<String> handleWebhook(
-            @RequestBody byte[] rawBody,
-            @RequestHeader("X-Kanall-Signature") String sig) {
-        try {
-            String body = new String(rawBody, "UTF-8");
-
-            if (!KanallSignatureVerifier.verify(body, sig, secret)) {
-                return ResponseEntity.status(401)
-                    .body("{\"error\":\"invalid signature\"}");
-            }
-
-            // Process asynchronously
-            // eventQueue.add(body);
-
-            return ResponseEntity.ok("{\"received\":true}");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).build();
-        }
-    }
-}
-```
-
-</TabItem>
-</Tabs>
+| Framework | Raw body access |
+|---|---|
+| Express (Node.js) | `express.raw({ type: 'application/json' })` — not `express.json()` |
+| Django (Python) | `request.body` |
+| Go net/http | `io.ReadAll(r.Body)` |
+| Spring Boot (Java) | `@RequestBody byte[]` parameter |
 
 ---
 
@@ -461,24 +327,6 @@ Kanall rejects timestamps more than 5 minutes old. If your server's clock is out
 ### Wrong secret
 
 The secret from `POST /auth/webhook-secret` is your per-tenant outbound webhook signing secret. It is separate from any Nomba signing secrets and separate from your Kanall API key.
-
----
-
-## Test your verification
-
-Use this test vector to confirm your implementation is correct:
-
-| Field | Value |
-|---|---|
-| Secret | `test-secret-kanall` |
-| Timestamp | `1751500000` |
-| Payload | `{"eventType":"payment.received","accountRef":"distributor-emeka","amount":"45000.00"}` |
-| Signed string | `1751500000.{"eventType":"payment.received","accountRef":"distributor-emeka","amount":"45000.00"}` |
-| Expected HMAC-SHA256 hex | `c7a4f2b9e3d1a8f5b2c9e6d3a0f7b4c1e8d5a2f9b6c3e0d7a4f1b8c5e2d9a6f3` |
-
-If your function returns `true` for this input with header `t=1751500000,v1=c7a4f2b9e3d1a8f5b2c9e6d3a0f7b4c1e8d5a2f9b6c3e0d7a4f1b8c5e2d9a6f3`, your implementation is correct.
-
-*(Note: You may need to generate this vector yourself with your HMAC library to verify your implementation matches. The structure above shows the expected format — compute the HMAC yourself using the signed string and compare.)*
 
 ---
 

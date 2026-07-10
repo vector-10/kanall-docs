@@ -97,17 +97,6 @@ async function kanall(method, path, body) {
 module.exports = { kanall }
 ```
 
-Usage:
-
-```js
-const { kanall } = require('./kanall')
-
-const account = await kanall('POST', '/v1/accounts', {
-  externalRef: 'distributor-emeka',
-  name: 'Emeka Okafor',
-})
-```
-
 </TabItem>
 <TabItem value="python" label="Python">
 
@@ -126,17 +115,6 @@ def kanall(method: str, path: str, body: dict = None):
     res = session.request(method, BASE_URL + path, json=body)
     res.raise_for_status()
     return res.json()
-```
-
-Usage:
-
-```python
-from kanall import kanall
-
-account = kanall('POST', '/v1/accounts', {
-    'externalRef': 'distributor-emeka',
-    'name': 'Emeka Okafor',
-})
 ```
 
 </TabItem>
@@ -200,19 +178,6 @@ func Request(ctx context.Context, method, path string, body any, out any) error 
 }
 ```
 
-Usage:
-
-```go
-var account struct {
-    BankAccountNumber string
-    AccountRef        string
-}
-err := kanall.Request(ctx, "POST", "/v1/accounts", map[string]string{
-    "externalRef": "distributor-emeka",
-    "name":        "Emeka Okafor",
-}, &account)
-```
-
 </TabItem>
 <TabItem value="java" label="Java">
 
@@ -251,16 +216,6 @@ public class KanallClient {
         return response.body();
     }
 }
-```
-
-Usage (with Gson):
-
-```java
-KanallClient kanall = new KanallClient();
-String json = kanall.request("POST", "/v1/accounts",
-    "{\"externalRef\":\"distributor-emeka\",\"name\":\"Emeka Okafor\"}");
-JsonObject account = JsonParser.parseString(json).getAsJsonObject();
-System.out.println(account.get("BankAccountNumber").getAsString());
 ```
 
 </TabItem>

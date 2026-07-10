@@ -332,26 +332,19 @@ Send `"amount": "45000.00"` — a decimal string. Sending `"amount": 45000` (a n
 
 ## Step E — Poll the transfer status
 
-The settle endpoint returns `202` — the transfer is queued, not yet completed. Poll `GET /v1/transfers/:merchantTxRef` to check the outcome.
-
-<Tabs>
-<TabItem value="js" label="JavaScript">
+The settle endpoint returns `202` — the transfer is queued, not yet completed. Poll `GET /v1/transfers/:merchantTxRef` until you get a terminal status:
 
 ```js
 async function waitForTransfer(merchantTxRef, maxAttempts = 10) {
   for (let i = 0; i < maxAttempts; i++) {
     const transfer = await kanall('GET', `/v1/transfers/${merchantTxRef}`)
-    
-    if (transfer.status === 'successful') {
-      console.log('Transfer completed:', transfer)
-      return transfer
-    }
-    
+
+    if (transfer.status === 'successful') return transfer
+
     if (transfer.status === 'failed' || transfer.status === 'reversed') {
       throw new Error(`Transfer ${transfer.status}: ${transfer.narration}`)
     }
 
-    // Still pending — wait before polling again
     await new Promise(r => setTimeout(r, 5000))
   }
 
@@ -359,77 +352,7 @@ async function waitForTransfer(merchantTxRef, maxAttempts = 10) {
 }
 ```
 
-</TabItem>
-<TabItem value="python" label="Python">
-
-```python
-import time
-
-def wait_for_transfer(merchant_tx_ref: str, max_attempts: int = 10) -> dict:
-    for _ in range(max_attempts):
-        transfer = kanall('GET', f'/v1/transfers/{merchant_tx_ref}')
-
-        if transfer['status'] == 'successful':
-            print('Transfer completed:', transfer)
-            return transfer
-
-        if transfer['status'] in ('failed', 'reversed'):
-            raise ValueError(f"Transfer {transfer['status']}: {transfer.get('narration')}")
-
-        time.sleep(5)
-
-    raise TimeoutError('Transfer status unknown after max attempts')
-```
-
-</TabItem>
-<TabItem value="go" label="Go">
-
-```go
-func waitForTransfer(ctx context.Context, merchantTxRef string) (map[string]any, error) {
-    for i := 0; i < 10; i++ {
-        var transfer map[string]any
-        if err := kanall.Request(ctx, "GET", "/v1/transfers/"+merchantTxRef, nil, &transfer); err != nil {
-            return nil, err
-        }
-
-        switch transfer["status"] {
-        case "successful":
-            return transfer, nil
-        case "failed", "reversed":
-            return nil, fmt.Errorf("transfer %s: %s", transfer["status"], transfer["narration"])
-        }
-
-        time.Sleep(5 * time.Second)
-    }
-    return nil, fmt.Errorf("transfer status unknown after max attempts")
-}
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-public JsonObject waitForTransfer(String merchantTxRef) throws Exception {
-    for (int i = 0; i < 10; i++) {
-        String json = kanall.request("GET", "/v1/transfers/" + merchantTxRef, null);
-        JsonObject transfer = JsonParser.parseString(json).getAsJsonObject();
-        String status = transfer.get("status").getAsString();
-
-        if ("successful".equals(status)) return transfer;
-
-        if ("failed".equals(status) || "reversed".equals(status)) {
-            throw new RuntimeException("Transfer " + status + ": " +
-                transfer.get("narration").getAsString());
-        }
-
-        Thread.sleep(5000);
-    }
-    throw new RuntimeException("Transfer status unknown after max attempts");
-}
-```
-
-</TabItem>
-</Tabs>
+The same polling loop applies in Python, Go, and Java — check `status` on each response and sleep 5 seconds between attempts.
 
 **Transfer statuses:**
 
