@@ -40,5 +40,6 @@ A backend integration that:
 
 1. [Configure your environment](./01-setup) — set up your Kanall tenant and API client
 2. [Provision distributor accounts](./02-provision-accounts) — assign a NUBAN to each distributor
-3. [Receive payment webhooks](./03-receive-payments) — handle payment events in your backend
+3. [Receive payment webhooks](./03-receive-payments) — handle and verify payment events in your backend
 4. [Reconcile and report](./04-reconcile) — query balances and generate daily route collection reports
+5. [Settlement](./05-settle) — look up accounts, verify recipients, and initiate outbound bank transfers

@@ -33,6 +33,14 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Guides',
+      collapsed: false,
+      items: [
+        'guides/webhook-verification',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Tutorial: Logistics Integration',
       collapsed: false,
       items: [
@@ -41,6 +49,7 @@ const sidebars: SidebarsConfig = {
         'tutorial/02-provision-accounts',
         'tutorial/03-receive-payments',
         'tutorial/04-reconcile',
+        'tutorial/05-settle',
       ],
     },
   ],
