@@ -23,9 +23,6 @@ const account = await kanall('POST', '/v1/accounts', {
   externalRef: 'distributor-emeka',
   name: 'Emeka Okafor',
 })
-
-console.log(account.BankAccountNumber) // NUBAN — print on invoice
-console.log(account.AccountRef)        // "distributor-emeka"
 ```
 
 </TabItem>
@@ -38,9 +35,6 @@ account = kanall('POST', '/v1/accounts', {
     'externalRef': 'distributor-emeka',
     'name': 'Emeka Okafor',
 })
-
-print(account['BankAccountNumber'])  # NUBAN
-print(account['AccountRef'])         # "distributor-emeka"
 ```
 
 </TabItem>
@@ -62,8 +56,6 @@ err := kanall.Request(ctx, "POST", "/v1/accounts", map[string]string{
 if err != nil {
     log.Fatal(err)
 }
-
-fmt.Println(account.BankAccountNumber) // NUBAN
 ```
 
 </TabItem>
@@ -73,10 +65,8 @@ fmt.Println(account.BankAccountNumber) // NUBAN
 String json = kanall.request("POST", "/v1/accounts",
     "{\"externalRef\":\"distributor-emeka\",\"name\":\"Emeka Okafor\"}");
 
-// Parse with Gson or Jackson
 JsonObject account = JsonParser.parseString(json).getAsJsonObject();
 String nuban = account.get("BankAccountNumber").getAsString();
-System.out.println(nuban); // NUBAN
 ```
 
 </TabItem>

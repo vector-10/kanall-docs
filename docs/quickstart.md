@@ -111,7 +111,6 @@ const res = await fetch('https://kanall.onrender.com/auth/webhook-url', {
   body: JSON.stringify({ url: 'https://app.starlinegas.ng/webhooks/kanall' }),
 })
 const data = await res.json()
-console.log(data) // { webhookUrl: 'https://app.starlinegas.ng/webhooks/kanall' }
 ```
 
 </TabItem>
@@ -128,7 +127,6 @@ res = requests.post(
     },
     json={'url': 'https://app.starlinegas.ng/webhooks/kanall'},
 )
-print(res.json())  # {'webhookUrl': 'https://app.starlinegas.ng/webhooks/kanall'}
 ```
 
 </TabItem>
@@ -178,11 +176,16 @@ HttpRequest request = HttpRequest.newBuilder()
     .build();
 
 HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
-System.out.println(response.body());
 ```
 
 </TabItem>
 </Tabs>
+
+**Response:**
+
+```json
+{ "webhookUrl": "https://app.starlinegas.ng/webhooks/kanall" }
+```
 
 ---
 
@@ -208,7 +211,6 @@ const res = await fetch('https://kanall.onrender.com/v1/accounts', {
   }),
 })
 const account = await res.json()
-console.log(account.BankAccountNumber) // the NUBAN — print it on invoices
 ```
 
 </TabItem>
@@ -226,7 +228,6 @@ res = requests.post(
     json={'externalRef': 'distributor-emeka', 'name': 'Emeka Okafor'},
 )
 account = res.json()
-print(account['BankAccountNumber'])  # NUBAN — print it on invoices
 ```
 
 </TabItem>
@@ -246,7 +247,6 @@ defer resp.Body.Close()
 
 var account map[string]any
 json.NewDecoder(resp.Body).Decode(&account)
-fmt.Println(account["BankAccountNumber"]) // NUBAN
 ```
 
 </TabItem>
@@ -263,8 +263,6 @@ HttpRequest request = HttpRequest.newBuilder()
     .build();
 
 HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
-// Parse response.body() with your JSON library
-// account.BankAccountNumber is the NUBAN
 ```
 
 </TabItem>
@@ -321,7 +319,6 @@ const res = await fetch('https://kanall.onrender.com/v1/accounts/distributor-eme
   headers: { 'X-API-Key': process.env.KANALL_API_KEY },
 })
 const statement = await res.json()
-console.log(statement.closingBalance) // "5000.00"
 ```
 
 </TabItem>
@@ -333,7 +330,6 @@ res = requests.get(
     headers={'X-API-Key': os.environ['KANALL_API_KEY']},
 )
 statement = res.json()
-print(statement['closingBalance'])  # "5000.00"
 ```
 
 </TabItem>
@@ -363,7 +359,6 @@ HttpRequest request = HttpRequest.newBuilder()
     .build();
 
 HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
-// Parse response.body() — statement.closingBalance is the ledger balance
 ```
 
 </TabItem>
@@ -408,15 +403,13 @@ const res = await fetch('https://kanall.onrender.com/v1/accounts/distributor-eme
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    amount: '5000.00',        // decimal string — never a number
+    amount: '5000.00',
     bankCode: '044',
     accountNumber: '0987654321',
     narration: 'Emeka payout - week 28',
   }),
 })
 const result = await res.json()
-// result.merchantTxRef — use this to track the transfer
-console.log(result.merchantTxRef) // "knl_1751500000_abc12345"
 ```
 
 </TabItem>
@@ -430,14 +423,13 @@ res = requests.post(
         'Content-Type': 'application/json',
     },
     json={
-        'amount': '5000.00',   # decimal string — never a number
+        'amount': '5000.00',
         'bankCode': '044',
         'accountNumber': '0987654321',
         'narration': 'Emeka payout - week 28',
     },
 )
 result = res.json()
-print(result['merchantTxRef'])  # use this to poll transfer status
 ```
 
 </TabItem>
@@ -445,7 +437,7 @@ print(result['merchantTxRef'])  # use this to poll transfer status
 
 ```go
 payload := map[string]string{
-    "amount":        "5000.00", // decimal string — never a number
+    "amount":        "5000.00",
     "bankCode":      "044",
     "accountNumber": "0987654321",
     "narration":     "Emeka payout - week 28",
@@ -459,7 +451,6 @@ req.Header.Set("Content-Type", "application/json")
 
 resp, _ := http.DefaultClient.Do(req)
 defer resp.Body.Close()
-// Parse resp.Body — result.merchantTxRef tracks the transfer
 ```
 
 </TabItem>
@@ -483,7 +474,6 @@ HttpRequest request = HttpRequest.newBuilder()
     .build();
 
 HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
-// Parse merchantTxRef from response.body() to poll transfer status
 ```
 
 </TabItem>

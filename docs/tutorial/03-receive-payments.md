@@ -291,27 +291,30 @@ async function handlePayment(event) {
 <TabItem value="python" label="Python">
 
 ```python
-# webhooks.py — Flask
-from flask import Flask, request, jsonify
-import os
+# views.py — Django
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json, os
 from verify_signature import verify_kanall_signature
 
-app = Flask(__name__)
 WEBHOOK_SECRET = os.environ['KANALL_WEBHOOK_SECRET']
 
-@app.route('/webhooks/kanall', methods=['POST'])
-def kanall_webhook():
-    sig = request.headers.get('X-Kanall-Signature')
-    raw_body = request.get_data()
+@csrf_exempt
+def kanall_webhook(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
 
-    if not sig or not verify_kanall_signature(raw_body, sig, WEBHOOK_SECRET):
-        return jsonify({'error': 'invalid signature'}), 401
+    # request.body gives raw bytes — must use this before any JSON parsing
+    sig = request.headers.get('X-Kanall-Signature', '')
+
+    if not verify_kanall_signature(request.body, sig, WEBHOOK_SECRET):
+        return JsonResponse({'error': 'invalid signature'}, status=401)
 
     # Acknowledge immediately
-    event = request.get_json()
+    event = json.loads(request.body)
     enqueue('handle_payment', event)
 
-    return jsonify({'received': True}), 200
+    return JsonResponse({'received': True})
 
 
 def handle_payment(event):
@@ -403,39 +406,35 @@ func handlePayment(event PaymentEvent) {
 <TabItem value="java" label="Java">
 
 ```java
-// KanallWebhookServlet.java — Jakarta Servlet
-import jakarta.servlet.http.*;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
+// WebhookController.java — Spring Boot
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.*;
 
-public class KanallWebhookServlet extends HttpServlet {
+@RestController
+public class WebhookController {
 
-    private static final String WEBHOOK_SECRET = System.getenv("KANALL_WEBHOOK_SECRET");
+    private final String secret = System.getenv("KANALL_WEBHOOK_SECRET");
 
-    @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-            throws IOException {
-        String rawBody = new String(req.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        String sig = req.getHeader("X-Kanall-Signature");
-
+    // @RequestBody byte[] gives us the raw body before Spring parses it
+    @PostMapping("/webhooks/kanall")
+    public ResponseEntity<String> handleWebhook(
+            @RequestBody byte[] rawBody,
+            @RequestHeader("X-Kanall-Signature") String sig) {
         try {
-            if (sig == null || !SignatureVerifier.verify(rawBody, sig, WEBHOOK_SECRET)) {
-                resp.sendError(HttpServletResponse.SC_UNAUTHORIZED, "invalid signature");
-                return;
+            String body = new String(rawBody, "UTF-8");
+
+            if (!SignatureVerifier.verify(body, sig, secret)) {
+                return ResponseEntity.status(401)
+                    .body("{\"error\":\"invalid signature\"}");
             }
+
+            // Process asynchronously
+            // executor.submit(() -> handlePayment(body));
+
+            return ResponseEntity.ok("{\"received\":true}");
         } catch (Exception e) {
-            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            return;
+            return ResponseEntity.status(500).build();
         }
-
-        // Acknowledge immediately
-        resp.setContentType("application/json");
-        resp.getWriter().write("{\"received\":true}");
-        resp.flushBuffer();
-
-        // Parse and process asynchronously
-        // JsonObject event = JsonParser.parseString(rawBody).getAsJsonObject();
-        // executor.submit(() -> handlePayment(event));
     }
 }
 ```
@@ -444,7 +443,7 @@ public class KanallWebhookServlet extends HttpServlet {
 </Tabs>
 
 :::warning Use raw body for signature verification
-Parse the JSON body **after** verifying the signature. Many frameworks buffer and re-encode the body before it reaches your handler, which changes whitespace and breaks the HMAC. Use `express.raw()` in Express, `request.get_data()` in Flask, or `req.getInputStream()` in Jakarta before any JSON parsing middleware touches the body.
+Parse the JSON body **after** verifying the signature. Many frameworks buffer and re-encode the body before it reaches your handler, which changes whitespace and breaks the HMAC. Use `express.raw()` in Express, `request.body` in Django, or `@RequestBody byte[]` in Spring Boot — before any JSON parsing middleware touches the body.
 :::
 
 ---

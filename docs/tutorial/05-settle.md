@@ -30,9 +30,7 @@ const { kanall } = require('./kanall')
 
 const { banks } = await kanall('GET', '/v1/transfers/banks')
 
-// Find First Bank
 const firstBank = banks.find(b => b.name.toLowerCase().includes('first bank'))
-console.log(firstBank) // { name: 'First Bank of Nigeria', code: '011' }
 ```
 
 </TabItem>
@@ -44,9 +42,7 @@ from kanall import kanall
 result = kanall('GET', '/v1/transfers/banks')
 banks = result['banks']
 
-# Find a bank by name
 first_bank = next(b for b in banks if 'first bank' in b['name'].lower())
-print(first_bank)  # {'name': 'First Bank of Nigeria', 'code': '011'}
 ```
 
 </TabItem>
@@ -86,6 +82,18 @@ for (JsonElement el : banks) {
 </TabItem>
 </Tabs>
 
+**Response:**
+
+```json
+{
+  "banks": [
+    { "name": "First Bank of Nigeria", "code": "011" },
+    { "name": "Guaranty Trust Bank", "code": "058" },
+    { "name": "Access Bank", "code": "044" }
+  ]
+}
+```
+
 ---
 
 ## Step B — Verify the recipient account
@@ -100,9 +108,6 @@ const lookup = await kanall('POST', '/v1/transfers/lookup', {
   bankCode: '011',
   accountNumber: '3201467801',
 })
-
-console.log(lookup.accountName) // "Akalonu Chukwuduzie Blaise"
-// Confirm this matches who you intend to pay before proceeding
 ```
 
 </TabItem>
@@ -113,9 +118,6 @@ lookup = kanall('POST', '/v1/transfers/lookup', {
     'bankCode': '011',
     'accountNumber': '3201467801',
 })
-
-print(lookup['accountName'])  # "Akalonu Chukwuduzie Blaise"
-# Confirm this matches who you intend to pay before proceeding
 ```
 
 </TabItem>
@@ -131,8 +133,6 @@ kanall.Request(ctx, "POST", "/v1/transfers/lookup", map[string]string{
     "bankCode":      "011",
     "accountNumber": "3201467801",
 }, &lookup)
-
-fmt.Println(lookup.AccountName) // "Akalonu Chukwuduzie Blaise"
 ```
 
 </TabItem>
@@ -143,12 +143,22 @@ String json = kanall.request("POST", "/v1/transfers/lookup",
     "{\"bankCode\":\"011\",\"accountNumber\":\"3201467801\"}");
 
 JsonObject lookup = JsonParser.parseString(json).getAsJsonObject();
-System.out.println(lookup.get("accountName").getAsString());
-// "Akalonu Chukwuduzie Blaise"
 ```
 
 </TabItem>
 </Tabs>
+
+**Response:**
+
+```json
+{
+  "accountName": "Akalonu Chukwuduzie Blaise",
+  "accountNumber": "3201467801",
+  "bankCode": "011"
+}
+```
+
+Confirm `accountName` matches who you intend to pay before proceeding.
 
 ---
 
@@ -161,9 +171,7 @@ Confirm the virtual account has enough confirmed balance to cover the transfer a
 
 ```js
 const { balance } = await kanall('GET', '/v1/accounts/distributor-emeka/balance')
-console.log(balance) // "45000.00"
 
-// Always compare as Decimal — never parseFloat for money
 const transferAmount = '45000.00'
 if (parseFloat(balance) < parseFloat(transferAmount)) {
   throw new Error('Insufficient balance')
@@ -221,6 +229,12 @@ if (balance.compareTo(transferAmount) < 0) {
 </TabItem>
 </Tabs>
 
+**Response:**
+
+```json
+{ "balance": "45000.00" }
+```
+
 ---
 
 ## Step D — Initiate the settlement
@@ -230,16 +244,12 @@ if (balance.compareTo(transferAmount) < 0) {
 
 ```js
 const result = await kanall('POST', '/v1/accounts/distributor-emeka/settle', {
-  amount: '45000.00',        // decimal string — never a number
+  amount: '45000.00',
   bankCode: '011',
   accountNumber: '3201467801',
   narration: 'Emeka payout - week 28',
 })
 
-console.log(result.merchantTxRef) // "knl_1751500000_abc12345"
-console.log(result.status)        // "pending"
-
-// Store merchantTxRef — you'll use it to poll the transfer status
 await db.query(
   'UPDATE settlements SET merchant_tx_ref = $1 WHERE distributor_id = $2',
   [result.merchantTxRef, distributorId]
@@ -251,16 +261,12 @@ await db.query(
 
 ```python
 result = kanall('POST', '/v1/accounts/distributor-emeka/settle', {
-    'amount': '45000.00',   # decimal string — never a number
+    'amount': '45000.00',
     'bankCode': '011',
     'accountNumber': '3201467801',
     'narration': 'Emeka payout - week 28',
 })
 
-print(result['merchantTxRef'])  # "knl_1751500000_abc12345"
-print(result['status'])         # "pending"
-
-# Store merchantTxRef to poll later
 db.execute(
     'UPDATE settlements SET merchant_tx_ref = %s WHERE distributor_id = %s',
     (result['merchantTxRef'], distributor_id)
@@ -277,14 +283,11 @@ var result struct {
 }
 
 kanall.Request(ctx, "POST", "/v1/accounts/distributor-emeka/settle", map[string]string{
-    "amount":        "45000.00", // decimal string — never a number
+    "amount":        "45000.00",
     "bankCode":      "011",
     "accountNumber": "3201467801",
     "narration":     "Emeka payout - week 28",
 }, &result)
-
-fmt.Println(result.MerchantTxRef) // "knl_1751500000_abc12345"
-// Store result.MerchantTxRef in your DB
 ```
 
 </TabItem>
@@ -305,9 +308,6 @@ JsonObject result = JsonParser.parseString(json).getAsJsonObject();
 
 String merchantTxRef = result.get("merchantTxRef").getAsString();
 String status        = result.get("status").getAsString();
-
-System.out.println(merchantTxRef); // "knl_1751500000_abc12345"
-// Store merchantTxRef in your DB for tracking
 ```
 
 </TabItem>
@@ -456,10 +456,6 @@ GET /v1/fees/calculate?net=45000.00
 
 ```js
 const fees = await kanall('GET', '/v1/fees/calculate?net=45000.00')
-
-console.log(fees.net)   // "45000.00" — what Emeka receives
-console.log(fees.fee)   // "50.00"    — Nomba's NIP fee
-console.log(fees.gross) // "45050.00" — what needs to be in the balance
 ```
 
 </TabItem>
@@ -467,10 +463,6 @@ console.log(fees.gross) // "45050.00" — what needs to be in the balance
 
 ```python
 fees = kanall('GET', '/v1/fees/calculate?net=45000.00')
-
-print(fees['net'])   # "45000.00"
-print(fees['fee'])   # "50.00"
-print(fees['gross']) # "45050.00"
 ```
 
 </TabItem>
@@ -483,7 +475,6 @@ var fees struct {
     Gross string `json:"gross"`
 }
 kanall.Request(ctx, "GET", "/v1/fees/calculate?net=45000.00", nil, &fees)
-fmt.Printf("Send %s to deliver %s (fee: %s)\n", fees.Gross, fees.Net, fees.Fee)
 ```
 
 </TabItem>
@@ -492,14 +483,22 @@ fmt.Printf("Send %s to deliver %s (fee: %s)\n", fees.Gross, fees.Net, fees.Fee)
 ```java
 String json = kanall.request("GET", "/v1/fees/calculate?net=45000.00", null);
 JsonObject fees = JsonParser.parseString(json).getAsJsonObject();
-
-System.out.println("Net:   " + fees.get("net").getAsString());   // 45000.00
-System.out.println("Fee:   " + fees.get("fee").getAsString());   // 50.00
-System.out.println("Gross: " + fees.get("gross").getAsString()); // 45050.00
 ```
 
 </TabItem>
 </Tabs>
+
+**Response:**
+
+```json
+{
+  "net": "45000.00",
+  "fee": "50.00",
+  "gross": "45050.00"
+}
+```
+
+`gross` is the amount that must be in the virtual account balance. `net` is what the recipient receives. `fee` is Nomba's NIP charge.
 
 ---
 

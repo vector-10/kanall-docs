@@ -248,7 +248,7 @@ public class KanallClient {
             throw new RuntimeException("Kanall error " + response.statusCode() + ": " + response.body());
         }
 
-        return response.body(); // parse with your JSON library (Gson, Jackson, etc.)
+        return response.body();
     }
 }
 ```
@@ -328,7 +328,6 @@ For local development, put your ngrok tunnel URL here and update it whenever the
 const { kanall } = require('./kanall')
 
 const result = await kanall('GET', '/v1/accounts')
-console.log(result) // { accounts: [], pagination: { hasMore: false } }
 ```
 
 </TabItem>
@@ -338,7 +337,6 @@ console.log(result) // { accounts: [], pagination: { hasMore: false } }
 from kanall import kanall
 
 result = kanall('GET', '/v1/accounts')
-print(result)  # {'accounts': [], 'pagination': {'hasMore': False}}
 ```
 
 </TabItem>
@@ -355,12 +353,16 @@ fmt.Println(result)
 
 ```java
 String result = kanall.request("GET", "/v1/accounts", null);
-System.out.println(result);
-// {"accounts":[],"pagination":{"hasMore":false}}
 ```
 
 </TabItem>
 </Tabs>
+
+**Response:**
+
+```json
+{ "accounts": [], "pagination": { "hasMore": false } }
+```
 
 An empty accounts list means your key is valid and you are ready for the next step.
 

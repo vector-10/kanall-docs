@@ -322,52 +322,25 @@ module.exports = router
 <TabItem value="python" label="Python">
 
 ```python
-# webhooks.py — Flask
-from flask import Flask, request, jsonify
-import os
-from kanall_verify import verify_kanall_signature
-
-app = Flask(__name__)
-SECRET = os.environ['KANALL_WEBHOOK_SECRET']
-
-@app.route('/webhooks/kanall', methods=['POST'])
-def kanall_webhook():
-    # get_data() returns raw bytes — do this BEFORE request.get_json()
-    raw_body = request.get_data()
-    sig = request.headers.get('X-Kanall-Signature', '')
-
-    if not verify_kanall_signature(raw_body, sig, SECRET):
-        return jsonify({'error': 'invalid signature'}), 401
-
-    # Acknowledge immediately
-    event = request.get_json(force=True)
-    process_payment_async(event)
-
-    return jsonify({'received': True}), 200
-```
-
-**Django view:**
-
-```python
 # views.py — Django
-from django.http import JsonResponse, HttpRequest
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-import os
+import json, os
 from kanall_verify import verify_kanall_signature
 
 SECRET = os.environ['KANALL_WEBHOOK_SECRET']
 
 @csrf_exempt
-def kanall_webhook(request: HttpRequest):
+def kanall_webhook(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'method not allowed'}, status=405)
 
+    # request.body gives raw bytes — must use this before any JSON parsing
     sig = request.headers.get('X-Kanall-Signature', '')
 
     if not verify_kanall_signature(request.body, sig, SECRET):
         return JsonResponse({'error': 'invalid signature'}, status=401)
 
-    import json
     event = json.loads(request.body)
     process_payment_async(event)
 
@@ -424,50 +397,6 @@ func HandleKanallWebhook(w http.ResponseWriter, r *http.Request) {
 <TabItem value="java" label="Java">
 
 ```java
-// KanallWebhookServlet.java — Jakarta Servlet
-import jakarta.servlet.http.*;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-
-public class KanallWebhookServlet extends HttpServlet {
-
-    private static final String SECRET = System.getenv("KANALL_WEBHOOK_SECRET");
-
-    @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-            throws IOException {
-        // Read raw body first — before any JSON parsing
-        String rawBody = new String(
-            req.getInputStream().readAllBytes(), StandardCharsets.UTF_8
-        );
-        String sig = req.getHeader("X-Kanall-Signature");
-
-        try {
-            if (!KanallSignatureVerifier.verify(rawBody, sig, SECRET)) {
-                resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                resp.getWriter().write("{\"error\":\"invalid signature\"}");
-                return;
-            }
-        } catch (Exception e) {
-            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            return;
-        }
-
-        // Acknowledge immediately — flush before processing
-        resp.setContentType("application/json");
-        resp.setStatus(HttpServletResponse.SC_OK);
-        resp.getWriter().write("{\"received\":true}");
-        resp.flushBuffer();
-
-        // Process asynchronously
-        // executor.submit(() -> processPayment(rawBody));
-    }
-}
-```
-
-**Spring Boot controller:**
-
-```java
 // WebhookController.java — Spring Boot
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.*;
@@ -477,12 +406,14 @@ public class WebhookController {
 
     private final String secret = System.getenv("KANALL_WEBHOOK_SECRET");
 
+    // @RequestBody byte[] gives us the raw body before Spring parses it
     @PostMapping("/webhooks/kanall")
     public ResponseEntity<String> handleWebhook(
             @RequestBody byte[] rawBody,
             @RequestHeader("X-Kanall-Signature") String sig) {
         try {
             String body = new String(rawBody, "UTF-8");
+
             if (!KanallSignatureVerifier.verify(body, sig, secret)) {
                 return ResponseEntity.status(401)
                     .body("{\"error\":\"invalid signature\"}");
@@ -515,11 +446,9 @@ The most common reason signature verification fails is parsing the JSON body bef
 | Framework | Raw body access |
 |---|---|
 | Express (Node.js) | `express.raw({ type: 'application/json' })` — not `express.json()` |
-| Flask (Python) | `request.get_data()` before `request.get_json()` |
 | Django (Python) | `request.body` |
 | Go net/http | `io.ReadAll(r.Body)` before json.NewDecoder |
-| Jakarta Servlet | `req.getInputStream().readAllBytes()` |
-| Spring Boot | `@RequestBody byte[]` parameter |
+| Spring Boot (Java) | `@RequestBody byte[]` parameter |
 
 ### Sending the wrong body in tests
 
