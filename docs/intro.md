@@ -71,4 +71,6 @@ Kanall is the right layer when:
 
 ---
 
+Not sure if Kanall is the right fit? [See use cases →](./use-cases) — if your platform collects money on behalf of multiple parties, it almost certainly is.
+
 **Ready to build?** [Get your API key →](./quickstart)

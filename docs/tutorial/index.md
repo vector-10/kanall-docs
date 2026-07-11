@@ -1,10 +1,10 @@
 ---
 id: index
-title: "Tutorial: StarLine Gas"
+title: "Tutorial: FMCG Integration"
 sidebar_label: Overview
 ---
 
-# Tutorial: StarLine Gas
+# Tutorial: FMCG Integration
 
 In this tutorial you will integrate Kanall into a FMCG distribution platform. By the end, your backend will:
 
@@ -38,7 +38,7 @@ A backend integration that:
 
 ## Tutorial steps
 
-1. [Configure your environment](./01-setup) — set up your Kanall tenant and API client
+1. [Set up your environment](./01-setup) — set up your Kanall tenant and API client
 2. [Provision distributor accounts](./02-provision-accounts) — assign a NUBAN to each distributor
 3. [Receive payment webhooks](./03-receive-payments) — handle and verify payment events in your backend
 4. [Reconcile and report](./04-reconcile) — query balances and generate daily route collection reports
